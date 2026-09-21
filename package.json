@@ -1,0 +1,26 @@
+{
+  "name": "clash-royale-discord-bot",
+  "version": "1.0.0",
+  "description": "Discord Clan-Management Bot for Clash Royale with River Race automated reporting and strike tracking",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node test/test-local.js"
+  },
+  "keywords": [
+    "discord",
+    "clash-royale",
+    "bot",
+    "clan-war",
+    "river-race"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.17.3",
+    "dotenv": "^16.4.7",
+    "node-cron": "^3.0.3"
+  }
+}
