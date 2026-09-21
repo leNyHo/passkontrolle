@@ -65,11 +65,23 @@ async function registerSlashCommands() {
 
   const rest = new REST({ version: '10' }).setToken(config.discordToken);
   try {
-    console.log(`[Commands] Registriere ${commandsPayload.length} globale Slash-Commands bei Discord...`);
+    console.log(`[Commands] Registriere ${commandsPayload.length} Slash-Commands bei Discord...`);
+    
+    // 1. Global registrieren
     await rest.put(
       Routes.applicationCommands(config.discordClientId),
       { body: commandsPayload }
     );
+
+    // 2. Direkt pro Server registrieren (erscheinen dadurch sofort ohne Wartezeit)
+    for (const guild of client.guilds.cache.values()) {
+      await rest.put(
+        Routes.applicationGuildCommands(config.discordClientId, guild.id),
+        { body: commandsPayload }
+      );
+      console.log(`[Commands] Sofortige Bereitstellung auf Server "${guild.name}" (${guild.id}) aktiv!`);
+    }
+
     console.log('[Commands] Slash-Commands erfolgreich registriert!');
   } catch (error) {
     console.error('[Commands] Fehler beim Registrieren der Slash-Commands:', error);
@@ -83,7 +95,7 @@ client.once(Events.ClientReady, async (c) => {
 
   c.user.setActivity('⚔️[BETA] ES KÖNNEN FEHLER AUFTRETEN⚔️', { type: ActivityType.Custom });
 
-  // Slash-Commands aktualisieren
+  // Slash-Commands sofort aktualisieren
   await registerSlashCommands();
 
   // Scheduler für tägliche Kriegsberichte starten
