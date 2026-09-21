@@ -128,9 +128,9 @@ Supercell schützt die API über eine IP-Freigabe. Dein API-Token muss die exter
 ### Schritt 5: Bot-Projekt auf die VM übertragen
 
 #### Option A: Über Git / GitHub (Sehr empfohlen)
-Wenn du das Projekt in ein privates GitHub-Repository gepusht hast:
+Klone dein Repository direkt mit einem Befehl auf die VM:
 ```bash
-git clone https://github.com/DEIN_USER/DEIN_REPO.git clash-bot
+git clone https://github.com/leNyHo/passkontrolle.git clash-bot
 cd clash-bot
 ```
 
