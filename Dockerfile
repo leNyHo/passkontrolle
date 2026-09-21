@@ -17,10 +17,8 @@ RUN npm ci --omit=dev
 
 COPY src/ ./src/
 
-# Verzeichnis für SQLite Datenbank erstellen und Berechtigungen setzen
-RUN mkdir -p /app/data && chown -R node:node /app
-
-USER node
+# Verzeichnis für SQLite Datenbank vorbereiten
+RUN mkdir -p /app/data
 
 # Startbefehl
 CMD ["node", "src/index.js"]
