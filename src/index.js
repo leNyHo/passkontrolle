@@ -12,14 +12,16 @@ import { getDatabase, closeDatabase } from './services/database.js';
 import { initScheduler, stopAllSchedulers } from './services/scheduler.js';
 
 // Befehle importieren
-import * as statusCommand from './commands/status.js';
+import * as angriffeCommand from './commands/angriffe.js';
+import * as erinnerungCommand from './commands/erinnerung.js';
+import * as verwarnungenCommand from './commands/verwarnungen.js';
 import * as setclanCommand from './commands/setclan.js';
 import * as setchannelCommand from './commands/setchannel.js';
 import * as settimeCommand from './commands/settime.js';
 import * as setwarningCommand from './commands/setwarning.js';
-import * as strikesCommand from './commands/strikes.js';
+import * as seterinnerungCommand from './commands/seterinnerung.js';
 import * as resetstrikesCommand from './commands/resetstrikes.js';
-import * as testreportCommand from './commands/testreport.js';
+import * as helpCommand from './commands/help.js';
 
 console.log('--- Starte Clash Royale Clan-Management Bot ---');
 validateConfig();
@@ -34,14 +36,16 @@ const client = new Client({
 
 client.commands = new Collection();
 const commandList = [
-  statusCommand,
+  angriffeCommand,
+  erinnerungCommand,
+  verwarnungenCommand,
   setclanCommand,
   setchannelCommand,
   settimeCommand,
   setwarningCommand,
-  strikesCommand,
+  seterinnerungCommand,
   resetstrikesCommand,
-  testreportCommand
+  helpCommand
 ];
 
 const commandsPayload = [];
@@ -77,7 +81,7 @@ client.once(Events.ClientReady, async (c) => {
   console.log(`[Discord] Eingeloggt als ${c.user.tag} (ID: ${c.user.id})`);
   console.log(`[Discord] Aktiv auf ${c.guilds.cache.size} Server(n).`);
 
-  c.user.setActivity('⚔️ Clankriege im Blick', { type: ActivityType.Custom });
+  c.user.setActivity('⚔️[BETA] ES KÖNNEN FEHLER AUFTRETEN⚔️', { type: ActivityType.Custom });
 
   // Slash-Commands aktualisieren
   await registerSlashCommands();

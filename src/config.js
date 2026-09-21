@@ -13,6 +13,7 @@ export const config = {
   timezone: process.env.TZ || 'Europe/Berlin',
   databasePath: process.env.DATABASE_PATH || path.resolve(__dirname, '../../data/clashbot.db'),
   defaultWarningMessage: '⚠️ Bitte denkt daran, eure Clankriegs-Angriffe rechtzeitig abzuschließen! Unvollständige Decks schwächen den Clan.',
+  defaultReminderMessage: 'Folgende Spieler haben noch Decks offen:',
   defaultWarEndTime: '12:00', // Format: HH:MM in Europe/Berlin
 };
 

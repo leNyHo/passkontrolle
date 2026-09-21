@@ -4,7 +4,7 @@ import { getWarParticipation } from '../services/clashRoyale.js';
 import { createStatusEmbed } from '../utils/embeds.js';
 
 export const data = new SlashCommandBuilder()
-  .setName('status')
+  .setName('angriffe')
   .setDescription('Ruft den aktuellen Angriffsstatus des laufenden Clankrieges ab.')
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
@@ -33,7 +33,7 @@ export async function execute(interaction) {
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
-    console.error('Fehler bei /status:', error);
+    console.error('Fehler bei /angriffe:', error);
     await interaction.editReply({
       content: `❌ **Fehler beim Abrufen der Clankriegsdaten:**\n${error.message}`
     });

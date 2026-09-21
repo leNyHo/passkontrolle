@@ -3,7 +3,7 @@ import { getAllStrikes } from '../services/database.js';
 import { createStrikesEmbed } from '../utils/embeds.js';
 
 export const data = new SlashCommandBuilder()
-  .setName('strikes')
+  .setName('verwarnungen')
   .setDescription('Zeigt die Liste aller Spieler mit verpassten Clankriegs-Decks aus der Datenbank.')
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
@@ -16,9 +16,9 @@ export async function execute(interaction) {
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
-    console.error('Fehler bei /strikes:', error);
+    console.error('Fehler bei /verwarnungen:', error);
     await interaction.editReply({
-      content: `❌ Fehler beim Laden der Strikes-Datenbank: ${error.message}`
+      content: `❌ Fehler beim Laden der Verwarnungen-Datenbank: ${error.message}`
     });
   }
 }

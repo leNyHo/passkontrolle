@@ -11,14 +11,16 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
 - **💾 SQLite-Datenbank (Persistent):** Speichert kumulativ alle verpassten Decks pro Spieler in einer lokalen Datenbank (`clashbot.db`).
 - **🚨 Automatische Kick-Vorschläge:** Spieler mit **5 oder mehr verpassten Decks** werden im Tagesbericht prominent als Kick-Kandidaten ausgewiesen.
 - **🛠️ Vollständige Admin Slash-Commands:**
-  - `/status` – Live-Kriegsstatus sofort abrufen (welche Decks fehlen heute noch?).
+  - `/angriffe` – Live-Kriegsstatus sofort abrufen (welche Decks fehlen heute noch?).
+  - `/erinnerung` – Erstellt eine fertige Erinnerungsnachricht mit allen säumigen Spielern.
+  - `/verwarnungen` – Gesamtübersicht aller Spieler mit verpassten Decks & Kick-Kandidaten (ab 5+ Decks).
   - `/setclan [Clan-Tag]` – Clan festlegen oder wechseln (z. B. `#2PP`).
   - `/setchannel` – Aktuellen Kanal als Report-Zielkanal festlegen.
   - `/settime [HH:MM]` – Kriegsende-Uhrzeit in `Europe/Berlin` anpassen (z. B. `11:30`).
   - `/setwarning [Text]` – Eigenen Verwarnungstext im Bericht hinterlegen.
-  - `/strikes` – Gesamtübersicht aller Spieler mit verpassten Decks abrufen.
+  - `/seterinnerung [Text]` – Eigenen Einleitungstext für die `/erinnerung` Nachricht hinterlegen.
   - `/resetstrikes [Spieler-Tag]` – Verpasste Decks für ein Mitglied auf 0 zurücksetzen.
-  - `/testreport` – Sofortigen Test-Bericht in den Kanal senden (ohne Datenbank-Strafpunkte zu werten).
+  - `/help` – Zeigt eine formatierte Übersicht aller Befehle.
 
 ---
 
@@ -211,17 +213,32 @@ Gehe in deinen Discord-Server in deinen Admin-Kanal und führe nacheinander folg
    /setwarning text:⚠️ Bitte macht eure Clankriegs-Angriffe pünktlich! Unvollständige Angriffe schwächen den Clan.
    ```
 
-5. **Testlauf durchführen:**
+5. **Eigenen Erinnerungstext festlegen (optional):**
    ```
-   /testreport
+   /seterinnerung text:Folgende Spieler haben noch Decks offen:
    ```
-   *Sendet sofort einen Test-Bericht in den Kanal, damit du das Design und die Zuordnung prüfen kannst!*
 
-6. **Live-Zwischenstand abrufen:**
+6. **Erinnerungsnachricht für Clanmitglieder generieren:**
    ```
-   /status
+   /erinnerung
    ```
-   *Zeigt dir in Echtzeit an, wer heute noch Angriffe offen hat.*
+   *Generiert sofort den Text mit Spielernamen und Anzahl offener Decks zum Kopieren oder Ankündigen.*
+
+7. **Live-Zwischenstand abrufen:**
+   ```
+   /angriffe
+   ```
+   *Zeigt dir in Echtzeit ein detailliertes Embed an, wer heute noch Angriffe offen hat.*
+
+8. **Verwarnungsliste & Kick-Vorschläge einsehen:**
+   ```
+   /verwarnungen
+   ```
+
+9. **Hilfe aufrufen:**
+   ```
+   /help
+   ```
 
 ---
 

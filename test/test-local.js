@@ -49,17 +49,20 @@ const guildId = '123456789012345678';
 const initialSettings = getGuildSettings(guildId);
 assert.equal(initialSettings.war_end_time, '12:00');
 assert.equal(initialSettings.clan_tag, null);
+assert.equal(initialSettings.reminder_message, 'Folgende Spieler haben noch Decks offen:');
 
 saveGuildSettings(guildId, {
   clan_tag: '#2PP',
   channel_id: '987654321098765432',
-  war_end_time: '11:30'
+  war_end_time: '11:30',
+  reminder_message: 'Kriegs-Erinnerung:'
 });
 
 const updatedSettings = getGuildSettings(guildId);
 assert.equal(updatedSettings.clan_tag, '#2PP');
 assert.equal(updatedSettings.channel_id, '987654321098765432');
 assert.equal(updatedSettings.war_end_time, '11:30');
+assert.equal(updatedSettings.reminder_message, 'Kriegs-Erinnerung:');
 console.log('  ✔ Guild-Settings erfolgreich gespeichert und geladen!\n');
 
 // Test 4: Strikes & Kick-Vorschläge (5+ Regel)
