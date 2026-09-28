@@ -22,11 +22,12 @@ const {
   getKickCandidates,
   getAllStrikes,
   resetPlayerStrikes,
+  resetAllStrikes,
   closeDatabase
 } = await import('../src/services/database.js');
 
 const { normalizeClanTag, encodeClanTag } = await import('../src/services/clashRoyale.js');
-const { timeToCronExpression } = await import('../src/services/scheduler.js');
+const { timeToCronExpression, getOneMinuteBefore } = await import('../src/services/scheduler.js');
 const { createWarReportEmbed, createStatusEmbed, createStrikesEmbed } = await import('../src/utils/embeds.js');
 
 // Test 1: Clan Tag Normalisierung
@@ -36,12 +37,16 @@ assert.equal(normalizeClanTag('#abc123xyz'), '#ABC123XYZ');
 assert.equal(encodeClanTag('2pp'), '%232PP');
 console.log('  ✔ Clan-Tag Tests erfolgreich!\n');
 
-// Test 2: Cron-Time Konverter
-console.log('▶ Test 2: Zeit-zu-Cron Konverter');
+// Test 2: Cron-Time Konverter & 1-Minute-Vorher Berechnung
+console.log('▶ Test 2: Zeit-zu-Cron Konverter & 1-Minute-Vorher');
 assert.equal(timeToCronExpression('12:00'), '0 12 * * *');
 assert.equal(timeToCronExpression('09:45'), '45 9 * * *');
 assert.equal(timeToCronExpression('18:05'), '5 18 * * *');
-console.log('  ✔ Cron-Konverter Tests erfolgreich!\n');
+assert.equal(getOneMinuteBefore('12:00'), '11:59');
+assert.equal(getOneMinuteBefore('00:00'), '23:59');
+assert.equal(getOneMinuteBefore('10:05'), '10:04');
+assert.equal(getOneMinuteBefore('10:00'), '09:59');
+console.log('  ✔ Cron-Konverter & 1-Minute-Vorher Tests erfolgreich!\n');
 
 // Test 3: Datenbank-Operationen
 console.log('▶ Test 3: SQLite Datenbank & Guild Settings');
@@ -65,8 +70,8 @@ assert.equal(updatedSettings.war_end_time, '11:30');
 assert.equal(updatedSettings.reminder_message, 'Kriegs-Erinnerung:');
 console.log('  ✔ Guild-Settings erfolgreich gespeichert und geladen!\n');
 
-// Test 4: Strikes & Kick-Vorschläge (5+ Regel)
-console.log('▶ Test 4: Fehlangriffe & Kick-Vorschläge (5+ Regel)');
+// Test 4: Strikes & Kick-Vorschläge (5+ Regel) & Reset All
+console.log('▶ Test 4: Fehlangriffe, Kick-Threshold (5+) & resetAllStrikes');
 // Spieler 1: 4 verpasste Decks am Tag 1
 recordMissedDecks(guildId, '#2PP', '2026-09-20', '#P1', 'Max', 4);
 // Spieler 2: 2 verpasste Decks am Tag 1
@@ -84,14 +89,19 @@ const all = getAllStrikes(1);
 assert.equal(all.length, 3);
 assert.equal(all[0].player_name, 'Tom'); // Höchste zuerst
 
-// Reset Test
+// Einzel-Reset Test
 resetPlayerStrikes('#P3');
 const afterResetKicks = getKickCandidates(5);
 assert.equal(afterResetKicks.length, 0);
-console.log('  ✔ Strikes & Kick-Threshold (5+) erfolgreich validiert!\n');
+
+// Reset ALL Test
+resetAllStrikes();
+const afterResetAll = getAllStrikes(1);
+assert.equal(afterResetAll.length, 0);
+console.log('  ✔ Strikes, Kick-Threshold (5+) & resetAllStrikes erfolgreich validiert!\n');
 
 // Test 5: Discord Embed Erstellung
-console.log('▶ Test 5: Discord Embed Rendering');
+console.log('▶ Test 5: Discord Embed Rendering (ohne Verwarnnachricht, ohne Fortsetzung X)');
 const reportEmbed = createWarReportEmbed({
   clanName: 'Test Clan',
   clanTag: '#2PP',
@@ -105,13 +115,12 @@ const reportEmbed = createWarReportEmbed({
   kickCandidates: [
     { player_name: 'Tom', player_tag: '#P3', total_missed_decks: 5, last_missed_date: '2026-09-21' }
   ],
-  warningMessage: 'Bitte Angriffe machen!',
   dateStr: '21.09.2026, 12:00',
   isTest: false
 });
 
 assert.ok(reportEmbed.data.title.includes('Clankriegs-Abschlussbericht'));
-assert.ok(reportEmbed.data.fields.length >= 3);
+assert.equal(reportEmbed.data.fields.length, 2); // 1. Unvollständig, 2. Kick-Kandidaten (kein Verwarnfeld mehr)
 
 const statusEmbed = createStatusEmbed({
   clanName: 'Test Clan',
@@ -121,9 +130,12 @@ const statusEmbed = createStatusEmbed({
   incompleteCount: 10,
   totalMembers: 50,
   totalMissedToday: 24,
-  incompleteList: []
+  incompleteList: [
+    { name: 'Max', tag: '#P1', missedDecks: 4, decksUsedToday: 0 }
+  ]
 });
 assert.ok(statusEmbed.data.title.includes('Aktueller Clankriegs-Status'));
+assert.ok(!JSON.stringify(statusEmbed.data).includes('Fortsetzung'));
 
 console.log('  ✔ Embeds fehlerfrei gerendert!\n');
 

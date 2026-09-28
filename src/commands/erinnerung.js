@@ -28,7 +28,7 @@ export async function execute(interaction) {
     }
 
     const prefix = settings.reminder_message || config.defaultReminderMessage;
-    const playerEntries = warData.incomplete.map(p => `${p.name} (${p.missedDecks})`);
+    const playerEntries = warData.incomplete.map(p => `@${p.name} (${p.missedDecks})`);
     const reminderText = `${prefix} ${playerEntries.join(', ')}`;
 
     // Discord Limit: 2000 Zeichen

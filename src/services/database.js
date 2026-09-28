@@ -207,6 +207,16 @@ export function resetPlayerStrikes(playerTag) {
   return (info?.changes || 0) > 0;
 }
 
+export function resetAllStrikes() {
+  const database = getDatabase();
+  const info = database.prepare(`
+    UPDATE player_strikes
+    SET total_missed_decks = 0, last_missed_decks = 0, updated_at = CURRENT_TIMESTAMP
+  `).run();
+
+  return (info?.changes || 0) > 0;
+}
+
 export function closeDatabase() {
   if (db) {
     try {

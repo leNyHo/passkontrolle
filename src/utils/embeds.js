@@ -10,6 +10,7 @@ export const COLORS = {
 
 /**
  * Hilfsfunktion zur Aufteilung von Textlisten in Embed-Fields (max. 1024 Zeichen pro Field)
+ * Verwendet ein unsichtbares Zeichen (\u200b) für Folgeblöcke anstelle von "(Fortsetzung X)"
  */
 function splitIntoFields(builder, fieldTitle, lines, emptyText) {
   if (!lines || lines.length === 0) {
@@ -18,24 +19,24 @@ function splitIntoFields(builder, fieldTitle, lines, emptyText) {
   }
 
   let currentChunk = '';
-  let chunkIndex = 1;
+  let isFirst = true;
 
   for (const line of lines) {
     if (currentChunk.length + line.length + 1 > 1000) {
       builder.addFields({
-        name: chunkIndex === 1 ? fieldTitle : `${fieldTitle} (Fortsetzung ${chunkIndex})`,
+        name: isFirst ? fieldTitle : '\u200b',
         value: currentChunk,
         inline: false
       });
       currentChunk = '';
-      chunkIndex++;
+      isFirst = false;
     }
     currentChunk += (currentChunk ? '\n' : '') + line;
   }
 
   if (currentChunk.length > 0) {
     builder.addFields({
-      name: chunkIndex === 1 ? fieldTitle : `${fieldTitle} (Fortsetzung ${chunkIndex})`,
+      name: isFirst ? fieldTitle : '\u200b',
       value: currentChunk,
       inline: false
     });
@@ -53,7 +54,6 @@ export function createWarReportEmbed({
   completedCount = 0,
   totalMembers = 0,
   kickCandidates = [],
-  warningMessage = '',
   dateStr = '',
   isTest = false
 }) {
@@ -80,7 +80,7 @@ export function createWarReportEmbed({
   // 1. Unvollständige Spieler heute
   const incompleteLines = incompleteList.map((player) => {
     const totalText = player.totalMissed != null ? ` *(Gesamt verpasst: **${player.totalMissed}**)*` : '';
-    return `• **${player.name}** (\`${player.tag}\`): **${player.missedDecks}/4** Decks verpasst${totalText}`;
+    return `• **${player.name}**: **${player.missedDecks}/4** Decks verpasst${totalText}`;
   });
 
   splitIntoFields(
@@ -92,7 +92,7 @@ export function createWarReportEmbed({
 
   // 2. Kick-Vorschläge (ab 5+ verpasste Decks)
   const kickLines = kickCandidates.map((c) => {
-    return `🚨 **${c.player_name}** (\`${c.player_tag}\`) – **${c.total_missed_decks} verpasste Decks** gesamt (Zuletzt: ${c.last_missed_date || 'k.A.'})`;
+    return `🚨 **${c.player_name}** – **${c.total_missed_decks} verpasste Decks** gesamt (Zuletzt: ${c.last_missed_date || 'k.A.'})`;
   });
 
   splitIntoFields(
@@ -102,18 +102,9 @@ export function createWarReportEmbed({
     '✅ **Keine Kick-Kandidaten.** Kein Mitglied hat aktuell 5 oder mehr verpasste Decks.'
   );
 
-  // 3. Verwarnungstext
-  if (warningMessage) {
-    embed.addFields({
-      name: '📢 Verwarnung an unvollständige Spieler',
-      value: `> ${warningMessage.split('\n').join('\n> ')}`,
-      inline: false
-    });
-  }
-
   embed.setFooter({
     text: isTest
-      ? 'Clash Royale Admin Bot • Manueller Testlauf (keine Datenbank-Strafen gewertet)'
+      ? 'Clash Royale Admin Bot • Manueller Testlauf'
       : 'Clash Royale Admin Bot • Täglicher automatischer Abschlussbericht'
   });
 
@@ -121,7 +112,7 @@ export function createWarReportEmbed({
 }
 
 /**
- * Erstellt das Live-Status-Embed für /status
+ * Erstellt das Live-Status-Embed für /angriffe
  */
 export function createStatusEmbed({
   clanName,
@@ -142,12 +133,12 @@ export function createStatusEmbed({
     .setDescription(
       `**Clan-Tag:** \`${clanTag}\` | **Phase:** \`${periodType}\`\n` +
       `**Fortschritt:** ${completedCount}/${totalMembers} Spieler fertig (${percentage}%)\n` +
-      `**Heute noch offen / verpasst:** ${totalMissedToday} Decks`
+      `**Heute noch offen:** ${totalMissedToday} Decks`
     )
     .setTimestamp();
 
   const lines = incompleteList.map((player) => {
-    return `• **${player.name}** (\`${player.tag}\`): ${player.decksUsedToday}/4 Decks gespielt (**${player.missedDecks} offen**)`;
+    return `• **${player.name}**: ${player.decksUsedToday}/4 Decks (**${player.missedDecks} offen**)`;
   });
 
   splitIntoFields(
@@ -157,17 +148,17 @@ export function createStatusEmbed({
     '🎉 Alle Mitglieder haben ihre 4 Angriffe für heute bereits abgeschlossen!'
   );
 
-  embed.setFooter({ text: 'Clash Royale Admin Bot • Live-Abfrage via /status' });
+  embed.setFooter({ text: 'Clash Royale Admin Bot • Live-Abfrage via /angriffe' });
   return embed;
 }
 
 /**
- * Erstellt das Embed für die Strikes-/Strafen-Übersicht (/strikes)
+ * Erstellt das Embed für die Verwarnungen-Übersicht (/verwarnungen)
  */
 export function createStrikesEmbed({ strikesList = [], threshold = 5 }) {
   const embed = new EmbedBuilder()
     .setColor(COLORS.INFO_BLUE)
-    .setTitle('📋 Übersicht der verpassten Clankriegs-Decks (Historie)')
+    .setTitle('📋 Übersicht der verpassten Clankriegs-Decks (Verwarnungen)')
     .setDescription(`Spieler mit **${threshold} oder mehr** verpassten Decks sind für einen Kick vorgemerkt.`)
     .setTimestamp();
 
@@ -181,12 +172,12 @@ export function createStrikesEmbed({ strikesList = [], threshold = 5 }) {
     const lines = strikesList.map((s, idx) => {
       const isKick = s.total_missed_decks >= threshold;
       const marker = isKick ? '🚨 **[KICK-KANDIDAT]** ' : '⚠️ ';
-      return `${idx + 1}. ${marker}**${s.player_name}** (\`${s.player_tag}\`): **${s.total_missed_decks}** Decks verpasst (Zuletzt: ${s.last_missed_date || 'k.A.'})`;
+      return `${idx + 1}. ${marker}**${s.player_name}**: **${s.total_missed_decks}** Decks verpasst (Zuletzt: ${s.last_missed_date || 'k.A.'})`;
     });
 
     splitIntoFields(embed, `Registrierte Spieler (${strikesList.length})`, lines, 'Keine Einträge');
   }
 
-  embed.setFooter({ text: 'Clash Royale Admin Bot • Strike-Datenbank' });
+  embed.setFooter({ text: 'Clash Royale Admin Bot • Verwarnungen-Datenbank' });
   return embed;
 }

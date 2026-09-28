@@ -18,9 +18,9 @@ import * as verwarnungenCommand from './commands/verwarnungen.js';
 import * as setclanCommand from './commands/setclan.js';
 import * as setchannelCommand from './commands/setchannel.js';
 import * as settimeCommand from './commands/settime.js';
-import * as setwarningCommand from './commands/setwarning.js';
 import * as seterinnerungCommand from './commands/seterinnerung.js';
 import * as resetstrikesCommand from './commands/resetstrikes.js';
+import * as resetallstrikesCommand from './commands/resetallstrikes.js';
 import * as helpCommand from './commands/help.js';
 
 console.log('--- Starte Clash Royale Clan-Management Bot ---');
@@ -42,9 +42,9 @@ const commandList = [
   setclanCommand,
   setchannelCommand,
   settimeCommand,
-  setwarningCommand,
   seterinnerungCommand,
   resetstrikesCommand,
+  resetallstrikesCommand,
   helpCommand
 ];
 

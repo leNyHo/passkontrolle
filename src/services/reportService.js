@@ -1,6 +1,7 @@
 import { getGuildSettings, saveGuildSettings, recordMissedDecks, getKickCandidates, getPlayerStrikes } from './database.js';
 import { getWarParticipation } from './clashRoyale.js';
 import { createWarReportEmbed } from '../utils/embeds.js';
+import { config } from '../config.js';
 
 export function getTodayDateString(timezone = 'Europe/Berlin') {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: timezone }).format(new Date()); // Format: YYYY-MM-DD
@@ -12,6 +13,65 @@ export function getFormattedDateTime(timezone = 'Europe/Berlin') {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(new Date());
+}
+
+/**
+ * Sendet die automatische Erinnerungsnachricht 1 Minute vor Kriegsende
+ */
+export async function executeWarReminder(client, guildId) {
+  const settings = getGuildSettings(guildId);
+
+  if (!settings.clan_tag || !settings.channel_id) {
+    return { skipped: true, reason: 'Clan-Tag oder Kanal nicht hinterlegt' };
+  }
+
+  const targetChannel = await client.channels.fetch(settings.channel_id).catch((err) => {
+    console.error(`[Reminder] Fehler beim Zugriff auf Kanal ${settings.channel_id}:`, err.message);
+    return null;
+  });
+
+  if (!targetChannel) return { skipped: true, reason: 'Kanal nicht erreichbar' };
+
+  // Live-Clankriegsdaten abrufen
+  const warData = await getWarParticipation(settings.clan_tag);
+
+  // Nur an Clankriegstagen (warDay / colosseum) senden
+  const isWarDay = warData.periodType === 'warDay' || warData.periodType === 'colosseum';
+  if (!isWarDay) {
+    console.log(`[Reminder] Heute ist Trainingstag (${warData.periodType}). Kein automatischer Reminder.`);
+    return { skipped: true, reason: 'Kein Clankriegstag' };
+  }
+
+  if (warData.incomplete.length === 0) {
+    console.log('[Reminder] Alle Spieler haben bereits 4/4 Angriffe absolviert. Kein Reminder nötig.');
+    return { skipped: true, reason: 'Alle fertig' };
+  }
+
+  const prefix = settings.reminder_message || config.defaultReminderMessage;
+  const playerEntries = warData.incomplete.map(p => `@${p.name} (${p.missedDecks})`);
+  const reminderText = `${prefix} ${playerEntries.join(', ')}`;
+
+  if (reminderText.length <= 2000) {
+    await targetChannel.send({ content: reminderText });
+  } else {
+    const chunks = [];
+    let current = `${prefix}\n`;
+    for (const entry of playerEntries) {
+      if (current.length + entry.length + 2 > 1950) {
+        chunks.push(current);
+        current = '';
+      }
+      current += (current ? ', ' : '') + entry;
+    }
+    if (current) chunks.push(current);
+
+    for (const chunk of chunks) {
+      await targetChannel.send({ content: chunk });
+    }
+  }
+
+  console.log(`[Reminder] Automatischer Reminder für Server ${guildId} erfolgreich in Kanal ${settings.channel_id} gesendet.`);
+  return { success: true, count: warData.incomplete.length };
 }
 
 /**
@@ -91,7 +151,6 @@ export async function executeWarReport(client, guildId, options = {}) {
     completedCount: warData.completedCount,
     totalMembers: warData.totalMembers,
     kickCandidates,
-    warningMessage: settings.warning_message,
     dateStr: getFormattedDateTime(settings.timezone),
     isTest
   });

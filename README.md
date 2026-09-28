@@ -12,14 +12,14 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
 - **🚨 Automatische Kick-Vorschläge:** Spieler mit **5 oder mehr verpassten Decks** werden im Tagesbericht prominent als Kick-Kandidaten ausgewiesen.
 - **🛠️ Vollständige Admin Slash-Commands:**
   - `/angriffe` – Live-Kriegsstatus sofort abrufen (welche Decks fehlen heute noch?).
-  - `/erinnerung` – Erstellt eine fertige Erinnerungsnachricht mit allen säumigen Spielern.
+  - `/erinnerung` – Erstellt eine fertige Erinnerungsnachricht (`@Name (offene Decks)`) zum Pingen/Kopieren (wird auch automatisch 1 Min. vor Kriegsende gesendet).
   - `/verwarnungen` – Gesamtübersicht aller Spieler mit verpassten Decks & Kick-Kandidaten (ab 5+ Decks).
   - `/setclan [Clan-Tag]` – Clan festlegen oder wechseln (z. B. `#2PP`).
-  - `/setchannel` – Aktuellen Kanal als Report-Zielkanal festlegen.
+  - `/setchannel` – Aktuellen Kanal als Ziel für Berichte und Erinnerungen festlegen.
   - `/settime [HH:MM]` – Kriegsende-Uhrzeit in `Europe/Berlin` anpassen (z. B. `11:30`).
-  - `/setwarning [Text]` – Eigenen Verwarnungstext im Bericht hinterlegen.
   - `/seterinnerung [Text]` – Eigenen Einleitungstext für die `/erinnerung` Nachricht hinterlegen.
-  - `/resetstrikes [Spieler-Tag]` – Verpasste Decks für ein Mitglied auf 0 zurücksetzen.
+  - `/resetstrikes [Spieler-Tag]` – Verpasste Decks für einen einzelnen Spieler auf 0 zurücksetzen.
+  - `/resetallstrikes` – Setzt die Verwarnungen **aller** Spieler auf 0 zurück (mit Bestätigungsabfrage).
   - `/help` – Zeigt eine formatierte Übersicht aller Befehle.
 
 ---
@@ -208,34 +208,39 @@ Gehe in deinen Discord-Server in deinen Admin-Kanal und führe nacheinander folg
    /settime uhrzeit:12:00
    ```
 
-4. **Eigenen Verwarnungstext hinterlegen (optional):**
-   ```
-   /setwarning text:⚠️ Bitte macht eure Clankriegs-Angriffe pünktlich! Unvollständige Angriffe schwächen den Clan.
-   ```
-
-5. **Eigenen Erinnerungstext festlegen (optional):**
+4. **Eigenen Erinnerungstext festlegen (optional):**
    ```
    /seterinnerung text:Folgende Spieler haben noch Decks offen:
    ```
 
-6. **Erinnerungsnachricht für Clanmitglieder generieren:**
+5. **Erinnerungsnachricht für Clanmitglieder generieren:**
    ```
    /erinnerung
    ```
-   *Generiert sofort den Text mit Spielernamen und Anzahl offener Decks zum Kopieren oder Ankündigen.*
+   *Generiert sofort den Text mit Spielernamen (`@Name (offene Decks)`) zum Kopieren oder Ankündigen (wird auch automatisch 1 Min. vor Kriegsende in den Kanal gesendet).*
 
-7. **Live-Zwischenstand abrufen:**
+6. **Live-Zwischenstand abrufen:**
    ```
    /angriffe
    ```
-   *Zeigt dir in Echtzeit ein detailliertes Embed an, wer heute noch Angriffe offen hat.*
+   *Zeigt dir in Echtzeit ein übersichtliches Embed an, wer heute noch Angriffe offen hat.*
 
-8. **Verwarnungsliste & Kick-Vorschläge einsehen:**
+7. **Verwarnungsliste & Kick-Vorschläge einsehen:**
    ```
    /verwarnungen
    ```
 
-9. **Hilfe aufrufen:**
+8. **Verwarnungen eines Spielers zurücksetzen:**
+   ```
+   /resetstrikes tag:#SPIELERTAG
+   ```
+
+9. **Alle Verwarnungen zurücksetzen (mit Bestätigung):**
+   ```
+   /resetallstrikes
+   ```
+
+10. **Hilfe aufrufen:**
    ```
    /help
    ```
