@@ -12,8 +12,7 @@ export const data = new SlashCommandBuilder()
       .setName('uhrzeit')
       .setDescription('Uhrzeit im Format HH:MM (z.B. 12:00 oder 11:30)')
       .setRequired(true)
-  )
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+  );
 
 export async function execute(interaction) {
   const inputTime = interaction.options.getString('uhrzeit').trim();

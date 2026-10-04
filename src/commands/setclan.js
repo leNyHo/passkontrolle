@@ -10,8 +10,7 @@ export const data = new SlashCommandBuilder()
       .setName('tag')
       .setDescription('Der Clan-Tag (z.B. #2PP oder 2PP)')
       .setRequired(true)
-  )
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+  );
 
 export async function execute(interaction) {
   await interaction.deferReply();

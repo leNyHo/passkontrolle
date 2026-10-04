@@ -9,8 +9,7 @@ export const data = new SlashCommandBuilder()
       .setName('text')
       .setDescription('Der neue Text vor der Spielerliste (z.B. Folgende Spieler haben noch Decks offen:)')
       .setRequired(true)
-  )
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+  );
 
 export async function execute(interaction) {
   const newText = interaction.options.getString('text').trim();

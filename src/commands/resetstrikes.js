@@ -10,8 +10,7 @@ export const data = new SlashCommandBuilder()
       .setName('tag')
       .setDescription('Der Spieler-Tag (z.B. #ABC123XYZ)')
       .setRequired(true)
-  )
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+  );
 
 export async function execute(interaction) {
   const inputTag = interaction.options.getString('tag');

@@ -3,8 +3,7 @@ import { saveGuildSettings } from '../services/database.js';
 
 export const data = new SlashCommandBuilder()
   .setName('setchannel')
-  .setDescription('Legt den aktuellen Kanal als Ziel für den täglichen Abschlussbericht fest.')
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+  .setDescription('Legt den aktuellen Kanal als Ziel für den täglichen Abschlussbericht fest.');
 
 export async function execute(interaction) {
   const channel = interaction.channel;

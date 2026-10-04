@@ -9,8 +9,7 @@ import { resetAllStrikes } from '../services/database.js';
 
 export const data = new SlashCommandBuilder()
   .setName('resetallstrikes')
-  .setDescription('Löscht ALLE Verwarnungen und verpassten Decks in der Datenbank (mit Sicherheitsabfrage).')
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+  .setDescription('Löscht ALLE Verwarnungen und verpassten Decks in der Datenbank (mit Sicherheitsabfrage).');
 
 export async function execute(interaction) {
   const confirmBtn = new ButtonBuilder()

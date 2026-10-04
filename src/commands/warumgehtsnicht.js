@@ -10,8 +10,7 @@ export const data = new SlashCommandBuilder()
       .setName('user')
       .setDescription('Optional: Bestimmten Nutzer prüfen, der den Bot nicht sieht oder nicht nutzen kann')
       .setRequired(false)
-  )
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+  );
 
 export async function execute(interaction) {
   await interaction.deferReply();
@@ -48,7 +47,7 @@ export async function execute(interaction) {
   }
 
   // ==========================================
-  // 2. Prüfung: Ziel-Nutzer Rechte
+  // 2. Prüfung: Ziel-Nutzer Rechte & Freigeschaltete Rolle
   // ==========================================
   if (targetMember) {
     const userChannelPerms = channel.permissionsFor(targetMember);
@@ -57,16 +56,33 @@ export async function execute(interaction) {
     const userCanView = userChannelPerms.has(PermissionFlagsBits.ViewChannel);
     const userCanUseCommands = userChannelPerms.has(PermissionFlagsBits.UseApplicationCommands);
 
-    if (!userIsAdmin && !userIsOwner) {
-      issues.push(
-        `🚨 **${targetUser.username} hat KEINE Discord-Administrator-Berechtigung!**\n` +
-        `> **Hauptursache:** Alle Slash-Commands dieses Bots sind standardmäßig mit \`Administrator\` geschützt. ` +
-        `Discord blendet diese Befehle für ${targetUser.username} **vollständig aus**!\n` +
-        `> **Lösung A:** Gib ${targetUser.username} eine Rolle mit der Berechtigung *Administrator*.\n` +
-        `> **Lösung B (Empfohlen ohne Admin-Rechte):** Öffne *Server-Einstellungen ➔ Integrationen ➔ Bots & Apps ➔ [Bot]* und schalte die Rolle von ${targetUser.username} für die Befehle frei!`
-      );
+    const hasAllowedRole = Boolean(
+      settings.allowed_role_id && (
+        targetMember.roles?.cache?.has(settings.allowed_role_id) ||
+        (Array.isArray(targetMember.roles) && targetMember.roles.includes(settings.allowed_role_id))
+      )
+    );
+
+    if (userIsOwner) {
+      checks.push(`✅ **${targetUser.username} ist Server-Owner:** Voller Zugriff auf alle Befehle.`);
+    } else if (userIsAdmin) {
+      checks.push(`✅ **${targetUser.username} ist Administrator:** Voller Zugriff auf alle Befehle.`);
+    } else if (hasAllowedRole) {
+      checks.push(`✅ **${targetUser.username} hat die freigeschaltete Rolle <@&${settings.allowed_role_id}>:** Voller Zugriff auf den Bot.`);
     } else {
-      checks.push(`✅ **${targetUser.username} ist Administrator:** Sieht standardmäßig alle Admin-Befehle.`);
+      if (settings.allowed_role_id) {
+        issues.push(
+          `🚨 **${targetUser.username} fehlt die freigeschaltete Rolle:**\n` +
+          `> Auf diesem Server ist die Rolle <@&${settings.allowed_role_id}> für den Bot hinterlegt.\n` +
+          `> ${targetUser.username} hat diese Rolle jedoch aktuell **nicht** zugewiesen!`
+        );
+      } else {
+        issues.push(
+          `🚨 **Keine Rolle für den Bot freigeschaltet:**\n` +
+          `> ${targetUser.username} hat keine Server-Administrator-Rechte und es wurde noch keine Rolle freigegeben.\n` +
+          `> **Lösung (ohne Admin-Rechte):** Der Server-Owner/Admin kann mit \`/erlauberolle @Rolle\` eine Rolle (z.B. Co-Leader) für den Bot freischalten!`
+        );
+      }
     }
 
     if (!userCanView) {
@@ -93,6 +109,10 @@ export async function execute(interaction) {
     checks.push(`✅ **Report-Kanal hinterlegt:** <#${settings.channel_id}>`);
   }
 
+  if (settings.allowed_role_id) {
+    checks.push(`✅ **Freigeschaltete Rolle eingerichtet:** <@&${settings.allowed_role_id}>`);
+  }
+
   // ==========================================
   // Embed zusammenbauen
   // ==========================================
@@ -117,11 +137,10 @@ export async function execute(interaction) {
       {
         name: '💡 Schnellanleitung für den Server-Owner',
         value:
-          '1. **Befehle für Nicht-Admins freischalten:**\n' +
-          '   `Server-Einstellungen` ➔ `Integrationen` ➔ `Bots & Apps` ➔ diesen Bot anklicken.\n' +
-          '   Dort kannst du Rollen (z. B. Co-Leader) explizit aktivieren, ohne ihnen volle Server-Admin-Rechte geben zu müssen.\n' +
+          '1. **Befehle ohne Admin-Rechte freischalten:**\n' +
+          '   Führe `/erlauberolle @Rolle` aus, um z. B. der Rolle @Co-Leader vollen Zugriff auf den Bot zu geben.\n' +
           '2. **Discord Client-Cache:**\n' +
-          '   Nach Rollenänderungen muss der Nutzer in Discord **STRG + R** (Mac: **CMD + R**) drücken!',
+          '   Nach Rollenänderungen muss der Nutzer in Discord **STRG + R** (Mac: **CMD + R**) drücken, falls Befehle noch nicht sofort im Menü sichtbar sind!',
         inline: false
       }
     )

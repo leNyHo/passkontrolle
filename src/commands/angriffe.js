@@ -5,8 +5,7 @@ import { createStatusEmbed } from '../utils/embeds.js';
 
 export const data = new SlashCommandBuilder()
   .setName('angriffe')
-  .setDescription('Ruft den aktuellen Angriffsstatus des laufenden Clankrieges ab.')
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+  .setDescription('Ruft den aktuellen Angriffsstatus des laufenden Clankrieges ab.');
 
 export async function execute(interaction) {
   await interaction.deferReply();

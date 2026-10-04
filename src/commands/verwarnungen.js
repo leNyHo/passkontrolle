@@ -4,8 +4,7 @@ import { createStrikesEmbed } from '../utils/embeds.js';
 
 export const data = new SlashCommandBuilder()
   .setName('verwarnungen')
-  .setDescription('Zeigt die Liste aller Spieler mit verpassten Clankriegs-Decks aus der Datenbank.')
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+  .setDescription('Zeigt die Liste aller Spieler mit verpassten Clankriegs-Decks aus der Datenbank.');
 
 export async function execute(interaction) {
   await interaction.deferReply();

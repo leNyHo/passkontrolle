@@ -30,6 +30,7 @@ const { normalizeClanTag, encodeClanTag } = await import('../src/services/clashR
 const { timeToCronExpression } = await import('../src/services/scheduler.js');
 const { createWarReportEmbed, createStatusEmbed, createStrikesEmbed } = await import('../src/utils/embeds.js');
 const warumgehtsnicht = await import('../src/commands/warumgehtsnicht.js');
+const erlauberolle = await import('../src/commands/erlauberolle.js');
 
 // Test 1: Clan Tag Normalisierung
 console.log('▶ Test 1: Clan-Tag Normalisierung & URL-Encoding');
@@ -39,11 +40,12 @@ assert.equal(encodeClanTag('2pp'), '%232PP');
 console.log('  ✔ Clan-Tag Tests erfolgreich!\n');
 
 // Test 2: Cron-Time Konverter
-console.log('▶ Test 2: Zeit-zu-Cron Konverter');
+console.log('▶ Test 2: Zeit-zu-Cron Konverter & Command-Exporte');
 assert.equal(timeToCronExpression('12:00'), '0 12 * * *');
 assert.equal(timeToCronExpression('09:45'), '45 9 * * *');
 assert.equal(timeToCronExpression('18:05'), '5 18 * * *');
 assert.ok(warumgehtsnicht.data.name === 'warumgehtsnicht');
+assert.ok(erlauberolle.data.name === 'erlauberolle');
 console.log('  ✔ Cron-Konverter & Command-Export Tests erfolgreich!\n');
 
 // Test 3: Datenbank-Operationen
@@ -53,12 +55,14 @@ const initialSettings = getGuildSettings(guildId);
 assert.equal(initialSettings.war_end_time, '12:00');
 assert.equal(initialSettings.clan_tag, null);
 assert.equal(initialSettings.reminder_message, 'Folgende Spieler haben noch Decks offen:');
+assert.equal(initialSettings.allowed_role_id, null);
 
 saveGuildSettings(guildId, {
   clan_tag: '#2PP',
   channel_id: '987654321098765432',
   war_end_time: '11:30',
-  reminder_message: 'Kriegs-Erinnerung:'
+  reminder_message: 'Kriegs-Erinnerung:',
+  allowed_role_id: '111222333444555666'
 });
 
 const updatedSettings = getGuildSettings(guildId);
@@ -66,6 +70,7 @@ assert.equal(updatedSettings.clan_tag, '#2PP');
 assert.equal(updatedSettings.channel_id, '987654321098765432');
 assert.equal(updatedSettings.war_end_time, '11:30');
 assert.equal(updatedSettings.reminder_message, 'Kriegs-Erinnerung:');
+assert.equal(updatedSettings.allowed_role_id, '111222333444555666');
 console.log('  ✔ Guild-Settings erfolgreich gespeichert und geladen!\n');
 
 // Test 4: Strikes & Kick-Vorschläge (5+ Regel) & Reset All

@@ -10,7 +10,8 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
 - **🎯 Exakte Beteiligungsprüfung:** Erkennt Clanmitglieder, die weniger als 4 Angriffe durchgeführt haben (`4 - gespielte Decks`).
 - **💾 SQLite-Datenbank (Persistent):** Speichert kumulativ alle verpassten Decks pro Spieler in einer lokalen Datenbank (`clashbot.db`).
 - **🚨 Automatische Kick-Vorschläge:** Spieler mit **5 oder mehr verpassten Decks** werden im Tagesbericht prominent als Kick-Kandidaten ausgewiesen.
-- **🛠️ Vollständige Admin Slash-Commands:**
+- **🛠️ Vollständige Admin & Co-Leader Slash-Commands:**
+  - `/erlauberolle [Rolle]` – Erlaubt einer Rolle (z. B. `@Co-Leader`) die volle Bot-Nutzung ohne Discord-Admin-Rechte.
   - `/angriffe` – Live-Kriegsstatus sofort abrufen (welche Decks fehlen heute noch?).
   - `/erinnerung` – Erstellt eine fertige Erinnerungsnachricht (`@Name (offene Decks)`) zum Pingen/Kopieren.
   - `/verwarnungen` – Gesamtübersicht aller Spieler mit verpassten Decks & Kick-Kandidaten (ab 5+ Decks).
@@ -204,7 +205,13 @@ Gehe in deinen Discord-Server in deinen Admin-Kanal und führe nacheinander folg
    ```
    *Führe dies direkt im gewünschten Zielkanal aus.*
 
-3. **Kriegsende-Uhrzeit anpassen (optional, Standard ist 12:00 Uhr):**
+3. **Rolle für Nicht-Admins freischalten (z. B. Co-Leader):**
+   ```
+   /erlauberolle rolle:@Co-Leader
+   ```
+   *Ermöglicht Mitgliedern mit dieser Rolle alle Befehle zu nutzen, ohne dass sie Discord-Administrator-Rechte auf dem Server besitzen müssen.*
+
+4. **Kriegsende-Uhrzeit anpassen (optional, Standard ist 12:00 Uhr):**
    ```
    /settime uhrzeit:12:00
    ```

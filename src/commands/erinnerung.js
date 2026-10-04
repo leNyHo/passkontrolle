@@ -5,8 +5,7 @@ import { config } from '../config.js';
 
 export const data = new SlashCommandBuilder()
   .setName('erinnerung')
-  .setDescription('Generiert eine Erinnerungsnachricht mit allen Spielern, die noch Decks offen haben.')
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+  .setDescription('Generiert eine Erinnerungsnachricht mit allen Spielern, die noch Decks offen haben.');
 
 export async function execute(interaction) {
   await interaction.deferReply();

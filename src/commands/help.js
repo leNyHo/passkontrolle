@@ -3,14 +3,13 @@ import { COLORS } from '../utils/embeds.js';
 
 export const data = new SlashCommandBuilder()
   .setName('help')
-  .setDescription('Zeigt eine Übersicht aller Befehle und Funktionen des Bots an.')
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+  .setDescription('Zeigt eine Übersicht aller Befehle und Funktionen des Bots an.');
 
 export async function execute(interaction) {
   const embed = new EmbedBuilder()
     .setColor(COLORS.INFO_BLUE)
     .setTitle('📖 Clash Royale Clan-Manager • Befehlsübersicht')
-    .setDescription('Hier findest du alle verfügbaren Admin Slash-Commands für das Clankriegs-Management:')
+    .setDescription('Hier findest du alle verfügbaren Slash-Commands für das Clankriegs-Management:')
     .addFields(
       {
         name: '⚔️ Clankrieg & Status',
@@ -25,6 +24,7 @@ export async function execute(interaction) {
       {
         name: '⚙️ Konfiguration & Diagnose',
         value:
+          '• `/erlauberolle [rolle]` – Erlaubt einer Rolle (z. B. Co-Leader) die Bot-Nutzung ohne Admin-Rechte.\n' +
           '• `/setclan [tag]` – Legt den zu überwachenden Clan-Tag fest (z. B. `#2PP`).\n' +
           '• `/setchannel` – Legt den aktuellen Kanal als Ziel für den täglichen Abschlussbericht fest.\n' +
           '• `/settime [HH:MM]` – Passt die Kriegsende-Uhrzeit an (Europe/Berlin, Standard: `12:00`).\n' +
