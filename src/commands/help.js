@@ -23,20 +23,20 @@ export async function execute(interaction) {
         inline: false
       },
       {
-        name: '⚙️ Konfiguration & Einstellungen',
+        name: '⚙️ Konfiguration & Diagnose',
         value:
           '• `/setclan [tag]` – Legt den zu überwachenden Clan-Tag fest (z. B. `#2PP`).\n' +
-          '• `/setchannel` – Legt den aktuellen Kanal als Ziel für Berichte und Erinnerungen fest.\n' +
+          '• `/setchannel` – Legt den aktuellen Kanal als Ziel für den täglichen Abschlussbericht fest.\n' +
           '• `/settime [HH:MM]` – Passt die Kriegsende-Uhrzeit an (Europe/Berlin, Standard: `12:00`).\n' +
           '• `/seterinnerung [text]` – Ändert den Einleitungstext für die `/erinnerung` Nachricht.\n' +
+          '• `/warumgehtsnicht [user]` – Diagnose-Tool: Prüft Berechtigungen, Kanalrechte und Rollen.\n' +
           '• `/help` – Öffnet diese Hilfeübersicht.',
         inline: false
       },
       {
-        name: '⏰ Automatische Benachrichtigungen',
+        name: '⏰ Automatischer Tagesbericht',
         value:
-          '1. **1 Minute vor Kriegsende:** Der Bot postet automatisch die `/erinnerung` Nachricht in den Admin-Kanal (sofern noch Decks offen sind).\n' +
-          '2. **Pünktlich zum Kriegsende:** Der Bot postet den offiziellen Abschlussbericht mit unvollständigen Spielern und konkreten **Kick-Vorschlägen (ab 5+ Decks)**.',
+          'Pünktlich zum eingestellten Kriegsende postet der Bot automatisch den offiziellen Abschlussbericht mit allen unvollständigen Spielern und konkreten **Kick-Vorschlägen (ab 5+ Decks)** in den festgelegten Kanal.',
         inline: false
       }
     )

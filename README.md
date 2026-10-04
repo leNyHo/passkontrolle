@@ -12,14 +12,15 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
 - **🚨 Automatische Kick-Vorschläge:** Spieler mit **5 oder mehr verpassten Decks** werden im Tagesbericht prominent als Kick-Kandidaten ausgewiesen.
 - **🛠️ Vollständige Admin Slash-Commands:**
   - `/angriffe` – Live-Kriegsstatus sofort abrufen (welche Decks fehlen heute noch?).
-  - `/erinnerung` – Erstellt eine fertige Erinnerungsnachricht (`@Name (offene Decks)`) zum Pingen/Kopieren (wird auch automatisch 1 Min. vor Kriegsende gesendet).
+  - `/erinnerung` – Erstellt eine fertige Erinnerungsnachricht (`@Name (offene Decks)`) zum Pingen/Kopieren.
   - `/verwarnungen` – Gesamtübersicht aller Spieler mit verpassten Decks & Kick-Kandidaten (ab 5+ Decks).
   - `/setclan [Clan-Tag]` – Clan festlegen oder wechseln (z. B. `#2PP`).
-  - `/setchannel` – Aktuellen Kanal als Ziel für Berichte und Erinnerungen festlegen.
+  - `/setchannel` – Aktuellen Kanal als Ziel für Berichte festlegen.
   - `/settime [HH:MM]` – Kriegsende-Uhrzeit in `Europe/Berlin` anpassen (z. B. `11:30`).
   - `/seterinnerung [Text]` – Eigenen Einleitungstext für die `/erinnerung` Nachricht hinterlegen.
   - `/resetstrikes [Spieler-Tag]` – Verpasste Decks für einen einzelnen Spieler auf 0 zurücksetzen.
   - `/resetallstrikes` – Setzt die Verwarnungen **aller** Spieler auf 0 zurück (mit Bestätigungsabfrage).
+  - `/warumgehtsnicht [user]` – Diagnose-Tool: Prüft Serverrechte, Rollen und Kanaleinstellungen.
   - `/help` – Zeigt eine formatierte Übersicht aller Befehle.
 
 ---
@@ -31,10 +32,10 @@ clash-royale-bot/
 ├── data/                      # Persistente SQLite-Datenbank (wird in Docker gemountet)
 │   └── clashbot.db
 ├── src/
-│   ├── commands/              # Slash Commands (/status, /setclan, /settime, etc.)
+│   ├── commands/              # Slash Commands (/angriffe, /erinnerung, /warumgehtsnicht, etc.)
 │   ├── services/
 │   │   ├── clashRoyale.js     # Offizielle Supercell API Anbindung & Logik
-│   │   ├── database.js        # better-sqlite3 Verwaltung & Historie
+│   │   ├── database.js        # better-sqlite3 / node:sqlite Verwaltung & Historie
 │   │   ├── scheduler.js       # node-cron Zeitsteuerung (Europe/Berlin)
 │   │   └── reportService.js   # Generierung des Abschlussberichts
 │   ├── utils/
@@ -179,7 +180,7 @@ docker compose logs -f
 Du wirst sehen:
 ```text
 [Discord] Eingeloggt als Clash Royale Manager#1234
-[Commands] Registriere 8 globale Slash-Commands bei Discord...
+[Commands] Registriere 10 globale Slash-Commands bei Discord...
 [Commands] Slash-Commands erfolgreich registriert!
 [Scheduler] Kriegsende-Job für Server registriert: "0 12 * * *" (Europe/Berlin)
 ```
@@ -217,7 +218,7 @@ Gehe in deinen Discord-Server in deinen Admin-Kanal und führe nacheinander folg
    ```
    /erinnerung
    ```
-   *Generiert sofort den Text mit Spielernamen (`@Name (offene Decks)`) zum Kopieren oder Ankündigen (wird auch automatisch 1 Min. vor Kriegsende in den Kanal gesendet).*
+   *Generiert sofort den Text mit Spielernamen (`@Name (offene Decks)`) zum Kopieren oder Ankündigen.*
 
 6. **Live-Zwischenstand abrufen:**
    ```
@@ -240,10 +241,17 @@ Gehe in deinen Discord-Server in deinen Admin-Kanal und führe nacheinander folg
    /resetallstrikes
    ```
 
-10. **Hilfe aufrufen:**
-   ```
-   /help
-   ```
+10. **Diagnose-Tool ausführen (falls jemand den Bot nicht sieht/nutzen kann):**
+    ```
+    /warumgehtsnicht
+    /warumgehtsnicht user:@Name
+    ```
+    *Prüft sofort Bot-Rechte, Kanal-Sichtbarkeit und fehlende Admin-Berechtigungen.*
+
+11. **Hilfe aufrufen:**
+    ```
+    /help
+    ```
 
 ---
 

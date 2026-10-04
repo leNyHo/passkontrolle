@@ -21,6 +21,7 @@ import * as settimeCommand from './commands/settime.js';
 import * as seterinnerungCommand from './commands/seterinnerung.js';
 import * as resetstrikesCommand from './commands/resetstrikes.js';
 import * as resetallstrikesCommand from './commands/resetallstrikes.js';
+import * as warumgehtsnichtCommand from './commands/warumgehtsnicht.js';
 import * as helpCommand from './commands/help.js';
 
 console.log('--- Starte Clash Royale Clan-Management Bot ---');
@@ -45,6 +46,7 @@ const commandList = [
   seterinnerungCommand,
   resetstrikesCommand,
   resetallstrikesCommand,
+  warumgehtsnichtCommand,
   helpCommand
 ];
 

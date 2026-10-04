@@ -27,8 +27,9 @@ const {
 } = await import('../src/services/database.js');
 
 const { normalizeClanTag, encodeClanTag } = await import('../src/services/clashRoyale.js');
-const { timeToCronExpression, getOneMinuteBefore } = await import('../src/services/scheduler.js');
+const { timeToCronExpression } = await import('../src/services/scheduler.js');
 const { createWarReportEmbed, createStatusEmbed, createStrikesEmbed } = await import('../src/utils/embeds.js');
+const warumgehtsnicht = await import('../src/commands/warumgehtsnicht.js');
 
 // Test 1: Clan Tag Normalisierung
 console.log('▶ Test 1: Clan-Tag Normalisierung & URL-Encoding');
@@ -37,16 +38,13 @@ assert.equal(normalizeClanTag('#abc123xyz'), '#ABC123XYZ');
 assert.equal(encodeClanTag('2pp'), '%232PP');
 console.log('  ✔ Clan-Tag Tests erfolgreich!\n');
 
-// Test 2: Cron-Time Konverter & 1-Minute-Vorher Berechnung
-console.log('▶ Test 2: Zeit-zu-Cron Konverter & 1-Minute-Vorher');
+// Test 2: Cron-Time Konverter
+console.log('▶ Test 2: Zeit-zu-Cron Konverter');
 assert.equal(timeToCronExpression('12:00'), '0 12 * * *');
 assert.equal(timeToCronExpression('09:45'), '45 9 * * *');
 assert.equal(timeToCronExpression('18:05'), '5 18 * * *');
-assert.equal(getOneMinuteBefore('12:00'), '11:59');
-assert.equal(getOneMinuteBefore('00:00'), '23:59');
-assert.equal(getOneMinuteBefore('10:05'), '10:04');
-assert.equal(getOneMinuteBefore('10:00'), '09:59');
-console.log('  ✔ Cron-Konverter & 1-Minute-Vorher Tests erfolgreich!\n');
+assert.ok(warumgehtsnicht.data.name === 'warumgehtsnicht');
+console.log('  ✔ Cron-Konverter & Command-Export Tests erfolgreich!\n');
 
 // Test 3: Datenbank-Operationen
 console.log('▶ Test 3: SQLite Datenbank & Guild Settings');

@@ -1,35 +1,10 @@
 import cron from 'node-cron';
 import { getAllGuildSettings, getGuildSettings } from './database.js';
-import { executeWarReport, executeWarReminder } from './reportService.js';
+import { executeWarReport } from './reportService.js';
 import { config } from '../config.js';
 
-// Map: guildId -> { reportJob: cron.ScheduledTask, reminderJob: cron.ScheduledTask }
+// Map: guildId -> cron.ScheduledTask
 const activeJobs = new Map();
-
-/**
- * Berechnet die Uhrzeit 1 Minute vor einer angegebenen Zeit (z.B. "12:00" -> "11:59")
- */
-export function getOneMinuteBefore(timeStr) {
-  const parts = timeStr.trim().split(':');
-  if (parts.length !== 2) return '11:59';
-
-  let hours = parseInt(parts[0], 10);
-  let minutes = parseInt(parts[1], 10);
-
-  if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-    return '11:59';
-  }
-
-  minutes -= 1;
-  if (minutes < 0) {
-    minutes = 59;
-    hours = (hours - 1 + 24) % 24;
-  }
-
-  const hStr = hours.toString().padStart(2, '0');
-  const mStr = minutes.toString().padStart(2, '0');
-  return `${hStr}:${mStr}`;
-}
 
 /**
  * Wandelt "HH:MM" in eine Cron-Expression um (z.B. "12:00" -> "0 12 * * *")
@@ -49,42 +24,19 @@ export function timeToCronExpression(timeStr) {
 }
 
 /**
- * Registriert oder aktualisiert die Cron-Jobs (Reminder & Report) für einen Server
+ * Registriert oder aktualisiert den Cron-Job für den Abschlussbericht eines Servers
  */
 export function scheduleGuildWarEnd(client, guildId, timeStr, timezone = config.timezone) {
-  // Alte Jobs stoppen falls vorhanden
+  // Alten Job stoppen falls vorhanden
   if (activeJobs.has(guildId)) {
-    const existing = activeJobs.get(guildId);
-    existing.reportJob?.stop();
-    existing.reminderJob?.stop();
+    activeJobs.get(guildId).stop();
     activeJobs.delete(guildId);
   }
 
   const effectiveTimezone = timezone || 'Europe/Berlin';
-  const reminderTimeStr = getOneMinuteBefore(timeStr);
-  const reminderCronExpr = timeToCronExpression(reminderTimeStr);
   const reportCronExpr = timeToCronExpression(timeStr);
 
-  // 1. Reminder-Job (1 Minute vor Kriegsende)
-  const reminderJob = cron.schedule(
-    reminderCronExpr,
-    async () => {
-      console.log(`[Scheduler] 1 Minute vor Kriegsende für Server ${guildId} (${reminderTimeStr} ${effectiveTimezone}). Sende automatische Erinnerung...`);
-      try {
-        const result = await executeWarReminder(client, guildId);
-        if (result.skipped) {
-          console.log(`[Scheduler] Reminder für Server ${guildId} übersprungen: ${result.reason}`);
-        } else {
-          console.log(`[Scheduler] Reminder für Server ${guildId} erfolgreich versendet!`);
-        }
-      } catch (err) {
-        console.error(`[Scheduler Reminder-Fehler auf Server ${guildId}]:`, err);
-      }
-    },
-    { timezone: effectiveTimezone }
-  );
-
-  // 2. Report-Job (exakt zum Kriegsende)
+  // Abschlussbericht-Job (exakt zum eingestellten Kriegsende)
   const reportJob = cron.schedule(
     reportCronExpr,
     async () => {
@@ -109,8 +61,8 @@ export function scheduleGuildWarEnd(client, guildId, timeStr, timezone = config.
     { timezone: effectiveTimezone }
   );
 
-  activeJobs.set(guildId, { reportJob, reminderJob });
-  console.log(`[Scheduler] Server ${guildId}: Reminder um ${reminderTimeStr} ("${reminderCronExpr}"), Report um ${timeStr} ("${reportCronExpr}") [${effectiveTimezone}]`);
+  activeJobs.set(guildId, reportJob);
+  console.log(`[Scheduler] Server ${guildId}: Abschlussbericht um ${timeStr} ("${reportCronExpr}") [${effectiveTimezone}]`);
 }
 
 /**
@@ -141,9 +93,8 @@ export function initScheduler(client) {
  * Stoppt alle aktiven Cron-Jobs (für graceful shutdown)
  */
 export function stopAllSchedulers() {
-  for (const [guildId, jobs] of activeJobs.entries()) {
-    jobs.reportJob?.stop();
-    jobs.reminderJob?.stop();
+  for (const [guildId, job] of activeJobs.entries()) {
+    job.stop();
   }
   activeJobs.clear();
   console.log('[Scheduler] Alle Zeitpläne gestoppt.');
