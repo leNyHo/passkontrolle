@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
 import { resetPlayerStrikes, getPlayerStrikes } from '../services/database.js';
 import { normalizeClanTag } from '../services/clashRoyale.js';
 

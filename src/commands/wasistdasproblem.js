@@ -217,7 +217,7 @@ export async function execute(interaction) {
   } catch (err) {
     console.error('Fehler in /wasistdasproblem:', err);
     await interaction.editReply({
-      content: `❌ **Diagnose-Fehler:** \`${err.message}\`\n\`\`\`${err.stack?.slice(0, 500)}\`\`\``
+      content: `❌ **Diagnose-Fehler:** Bei der Diagnose ist ein interner Fehler aufgetreten: \`${err.message}\`. Bitte prüfe die Server-Konsole.`
     }).catch(() => {});
   }
 }

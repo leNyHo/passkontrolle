@@ -30,11 +30,11 @@ export async function ensurePasskontrollRole(guild) {
       guild.members.me || (await guild.members.fetchMe().catch(() => null));
     if (!botMember) return null;
 
-    const hasManageRoles = botMember.permissions.has(
-      PermissionFlagsBits.ManageRoles
+    const hasManageRoles = Boolean(
+      botMember.permissions?.has?.(PermissionFlagsBits.ManageRoles)
     );
-    const hasAdmin = botMember.permissions.has(
-      PermissionFlagsBits.Administrator
+    const hasAdmin = Boolean(
+      botMember.permissions?.has?.(PermissionFlagsBits.Administrator)
     );
 
     if (hasManageRoles || hasAdmin) {

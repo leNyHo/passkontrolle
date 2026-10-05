@@ -1,7 +1,7 @@
 import {
   getGuildSettings,
   saveGuildSettings,
-  recordMissedDecks,
+  recordMissedDecksBatch,
   getKickCandidates,
   getPlayerStrikes,
   pruneStrikesNotInMemberList
@@ -140,19 +140,9 @@ export async function executeWarReport(client, guildId, options = {}) {
     return { skipped: true, reason: `Kein Clankriegstag (aktuell: ${warData.periodType})` };
   }
 
-  // Wenn kein Test: Strafpunkte in SQLite-Datenbank persistieren
+  // Wenn kein Test: Strafpunkte in SQLite-Datenbank persistieren (im Batch für optimale Performance)
   if (!isTest) {
-    for (const player of warData.incomplete) {
-      recordMissedDecks(
-        guildId,
-        warData.clanTag,
-        todayDateStr,
-        player.tag,
-        player.name,
-        player.missedDecks
-      );
-    }
-
+    recordMissedDecksBatch(guildId, warData.clanTag, todayDateStr, warData.incomplete);
     saveGuildSettings(guildId, { last_report_date: todayDateStr });
   }
 

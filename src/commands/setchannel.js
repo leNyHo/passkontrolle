@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { SlashCommandBuilder, ChannelType } from 'discord.js';
 import { saveGuildSettings } from '../services/database.js';
 
 export const data = new SlashCommandBuilder()

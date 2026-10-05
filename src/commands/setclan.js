@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
 import { saveGuildSettings } from '../services/database.js';
 import { normalizeClanTag, getClanInfo } from '../services/clashRoyale.js';
 

@@ -10,7 +10,7 @@ import {
 } from 'discord.js';
 import { config, validateConfig } from './config.js';
 import { getDatabase, closeDatabase, getGuildSettings } from './services/database.js';
-import { initScheduler, stopAllSchedulers } from './services/scheduler.js';
+import { initScheduler, stopAllSchedulers, scheduleGuildWarEnd } from './services/scheduler.js';
 import { ensurePasskontrollRole, hasPasskontrollRole, ROLE_NAME } from './utils/roles.js';
 
 // Befehle importieren
@@ -115,7 +115,22 @@ client.once(Events.ClientReady, async (c) => {
 
 // Event: Neuer Server beigetreten
 client.on(Events.GuildCreate, async (guild) => {
+  console.log(`[Discord] Neuem Server beigetreten: "${guild.name}" (${guild.id})`);
   await ensurePasskontrollRole(guild);
+  scheduleGuildWarEnd(client, guild.id, config.defaultWarEndTime, config.timezone);
+
+  if (config.discordToken && config.discordClientId) {
+    try {
+      const rest = new REST({ version: '10' }).setToken(config.discordToken);
+      await rest.put(
+        Routes.applicationGuildCommands(config.discordClientId, guild.id),
+        { body: commandsPayload }
+      );
+      console.log(`[Commands] Sofortige Bereitstellung auf neuem Server "${guild.name}" (${guild.id}) aktiv!`);
+    } catch (err) {
+      console.warn(`[Commands] Konnte Guild-Commands für "${guild.name}" nicht sofort registrieren:`, err.message);
+    }
+  }
 });
 
 // Event: Interaktion empfangen (Slash Commands)

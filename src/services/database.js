@@ -58,7 +58,9 @@ function initSchema(database) {
     );
 
     CREATE INDEX IF NOT EXISTS idx_player_strikes_total ON player_strikes(total_missed_decks);
+    CREATE INDEX IF NOT EXISTS idx_player_strikes_clan ON player_strikes(clan_tag);
     CREATE INDEX IF NOT EXISTS idx_war_history_date ON war_history(war_date);
+    CREATE INDEX IF NOT EXISTS idx_war_history_clan ON war_history(clan_tag);
   `);
 
   // Migrationen für bestehende Datenbanken
@@ -177,6 +179,44 @@ export function recordMissedDecks(guildId, clanTag, dateStr, playerTag, playerNa
     `);
     historyStmt.run(guildId, clanTag, dateStr, playerTag, playerName, missedCount);
 
+    database.exec('COMMIT;');
+  } catch (error) {
+    database.exec('ROLLBACK;');
+    throw error;
+  }
+}
+
+/**
+ * Speichert verpasste Decks mehrerer Spieler in einer einzigen atomaren Transaktion
+ * (Vermeidet N+1 Transaktionen und wiederholtes Statement-Parsing).
+ */
+export function recordMissedDecksBatch(guildId, clanTag, dateStr, playerList = []) {
+  if (!playerList || playerList.length === 0) return;
+
+  const database = getDatabase();
+  const upsertStmt = database.prepare(`
+    INSERT INTO player_strikes (player_tag, player_name, clan_tag, total_missed_decks, last_missed_decks, last_missed_date, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(player_tag) DO UPDATE SET
+      player_name = excluded.player_name,
+      clan_tag = excluded.clan_tag,
+      total_missed_decks = total_missed_decks + excluded.total_missed_decks,
+      last_missed_decks = excluded.last_missed_decks,
+      last_missed_date = excluded.last_missed_date,
+      updated_at = CURRENT_TIMESTAMP
+  `);
+
+  const historyStmt = database.prepare(`
+    INSERT INTO war_history (guild_id, clan_tag, war_date, player_tag, player_name, missed_decks)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  database.exec('BEGIN TRANSACTION;');
+  try {
+    for (const player of playerList) {
+      upsertStmt.run(player.tag, player.name, clanTag, player.missedDecks, player.missedDecks, dateStr);
+      historyStmt.run(guildId, clanTag, dateStr, player.tag, player.name, player.missedDecks);
+    }
     database.exec('COMMIT;');
   } catch (error) {
     database.exec('ROLLBACK;');

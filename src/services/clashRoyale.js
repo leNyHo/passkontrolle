@@ -27,7 +27,8 @@ async function apiFetch(endpoint) {
     headers: {
       'Authorization': `Bearer ${config.clashRoyaleApiKey}`,
       'Accept': 'application/json'
-    }
+    },
+    signal: AbortSignal.timeout(10000)
   });
 
   if (!response.ok) {
