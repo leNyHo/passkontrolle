@@ -35,7 +35,7 @@ clash-royale-bot/
 ├── data/                      # Persistente SQLite-Datenbank (wird in Docker gemountet)
 │   └── clashbot.db
 ├── src/
-│   ├── commands/              # Slash Commands (/angriffe, /erinnerung, /warumgehtsnicht, etc.)
+│   ├── commands/              # Slash Commands (/angriffe, /erinnerung, /wasistdasproblem, etc.)
 │   ├── services/
 │   │   ├── clashRoyale.js     # Offizielle Supercell API Anbindung & Logik
 │   │   ├── database.js        # better-sqlite3 / node:sqlite Verwaltung & Historie

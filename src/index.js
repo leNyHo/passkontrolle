@@ -167,19 +167,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } else {
       const isOwner = guild.ownerId === interaction.user.id;
       const isAdmin = Boolean(interaction.member?.permissions?.has?.(PermissionFlagsBits.Administrator));
+      const userHasPasskontroll = hasPasskontrollRole(interaction.member, guild);
 
-      // 1. /erlauberolle darf NUR von Server-Owner oder Discord-Administratoren ausgeführt werden
+      // 1. /erlauberolle darf von Server-Owner, Discord-Administratoren oder Mitgliedern mit der Rolle "Passkontroll-User" ausgeführt werden
       if (interaction.commandName === 'erlauberolle') {
-        if (!isOwner && !isAdmin) {
+        if (!isOwner && !isAdmin && !userHasPasskontroll) {
           return await interaction.reply({
-            content: '❌ **Keine Berechtigung!** Nur der Server-Owner oder Discord-Administratoren können berechtigte Rollen festlegen.',
+            content: `❌ **Keine Berechtigung!** Nur der Server-Owner, Discord-Administratoren oder Nutzer mit der Rolle **${ROLE_NAME}** können berechtigte Rollen festlegen.`,
             ephemeral: true
           });
         }
       } else {
         // 2. Für alle anderen Befehle: Server-Owner, Discord-Admin, Rolle "Passkontroll-User" ODER freigeschaltete Rolle via /erlauberolle
         const settings = getGuildSettings(interaction.guildId);
-        const userHasPasskontroll = hasPasskontrollRole(interaction.member, guild);
 
         const hasAllowedRole = Boolean(
           settings.allowed_role_id && (
