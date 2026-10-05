@@ -24,13 +24,14 @@ export async function execute(interaction) {
       {
         name: '⚙️ Konfiguration & Diagnose',
         value:
+          '• `/wasistdasproblem [user]` – Diagnose-Tool: Prüft Berechtigungen, Rollen und Einstellungen (für alle Rollen).\n' +
           '• `/erlauberolle [rolle]` – Erlaubt einer Rolle (z. B. Co-Leader) die Bot-Nutzung ohne Admin-Rechte.\n' +
           '• `/setclan [tag]` – Legt den zu überwachenden Clan-Tag fest (z. B. `#2PP`).\n' +
           '• `/setchannel` – Legt den aktuellen Kanal als Ziel für den täglichen Abschlussbericht fest.\n' +
           '• `/settime [HH:MM]` – Passt die Kriegsende-Uhrzeit an (Europe/Berlin, Standard: `12:00`).\n' +
           '• `/seterinnerung [text]` – Ändert den Einleitungstext für die `/erinnerung` Nachricht.\n' +
-          '• `/warumgehtsnicht [user]` – Diagnose-Tool: Prüft Berechtigungen, Kanalrechte und Rollen.\n' +
-          '• `/help` – Öffnet diese Hilfeübersicht.',
+          '• `/help` – Öffnet diese Hilfeübersicht.\n\n' +
+          '*Hinweis: Nutzer mit der Rolle **Passkontroll-User** können alle Befehle direkt nutzen!*',
         inline: false
       },
       {

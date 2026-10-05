@@ -11,9 +11,12 @@ import {
 import { config, validateConfig } from './config.js';
 import { getDatabase, closeDatabase, getGuildSettings } from './services/database.js';
 import { initScheduler, stopAllSchedulers } from './services/scheduler.js';
+import { ensurePasskontrollRole, hasPasskontrollRole, ROLE_NAME } from './utils/roles.js';
 
 // Befehle importieren
 import * as erlauberolleCommand from './commands/erlauberolle.js';
+import * as wasistdasproblemCommand from './commands/wasistdasproblem.js';
+import * as warumgehtsnichtCommand from './commands/warumgehtsnicht.js';
 import * as angriffeCommand from './commands/angriffe.js';
 import * as erinnerungCommand from './commands/erinnerung.js';
 import * as verwarnungenCommand from './commands/verwarnungen.js';
@@ -23,7 +26,6 @@ import * as settimeCommand from './commands/settime.js';
 import * as seterinnerungCommand from './commands/seterinnerung.js';
 import * as resetstrikesCommand from './commands/resetstrikes.js';
 import * as resetallstrikesCommand from './commands/resetallstrikes.js';
-import * as warumgehtsnichtCommand from './commands/warumgehtsnicht.js';
 import * as helpCommand from './commands/help.js';
 
 console.log('--- Starte Clash Royale Clan-Management Bot ---');
@@ -40,6 +42,8 @@ const client = new Client({
 client.commands = new Collection();
 const commandList = [
   erlauberolleCommand,
+  wasistdasproblemCommand,
+  warumgehtsnichtCommand,
   angriffeCommand,
   erinnerungCommand,
   verwarnungenCommand,
@@ -49,7 +53,6 @@ const commandList = [
   seterinnerungCommand,
   resetstrikesCommand,
   resetallstrikesCommand,
-  warumgehtsnichtCommand,
   helpCommand
 ];
 
@@ -100,11 +103,21 @@ client.once(Events.ClientReady, async (c) => {
 
   c.user.setActivity('⚔️[BETA] ES KÖNNEN FEHLER AUFTRETEN⚔️', { type: ActivityType.Custom });
 
+  // Rolle "Passkontroll-User" auf allen Servern sicherstellen
+  for (const guild of c.guilds.cache.values()) {
+    await ensurePasskontrollRole(guild);
+  }
+
   // Slash-Commands sofort aktualisieren
   await registerSlashCommands();
 
   // Scheduler für tägliche Kriegsberichte starten
   initScheduler(client);
+});
+
+// Event: Neuer Server beigetreten
+client.on(Events.GuildCreate, async (guild) => {
+  await ensurePasskontrollRole(guild);
 });
 
 // Event: Interaktion empfangen (Slash Commands)
@@ -130,9 +143,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
           ephemeral: true
         });
       }
-    } else if (interaction.commandName !== 'warumgehtsnicht') {
-      // 2. Für alle anderen Befehle (außer Diagnose): Server-Owner, Discord-Admin ODER freigeschaltete Rolle
+    } else if (interaction.commandName !== 'wasistdasproblem' && interaction.commandName !== 'warumgehtsnicht') {
+      // 2. Für alle anderen Befehle: Server-Owner, Discord-Admin, Rolle "Passkontroll-User" ODER freigeschaltete Rolle via /erlauberolle
       const settings = getGuildSettings(interaction.guildId);
+      const userHasPasskontroll = hasPasskontrollRole(interaction.member, interaction.guild);
+
       const hasAllowedRole = Boolean(
         settings.allowed_role_id && (
           interaction.member?.roles?.cache?.has(settings.allowed_role_id) ||
@@ -140,10 +155,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
         )
       );
 
-      if (!isOwner && !isAdmin && !hasAllowedRole) {
-        const deniedMsg = settings.allowed_role_id
-          ? `❌ **Keine Berechtigung!** Du benötigst die Rolle <@&${settings.allowed_role_id}> oder Discord-Administrator-Rechte, um diesen Befehl zu nutzen.`
-          : '❌ **Keine Berechtigung!** Auf diesem Server wurde noch keine Rolle für den Bot freigeschaltet.\nEin Server-Administrator kann mit `/erlauberolle @Rolle` deine Rolle freischalten.';
+      if (!isOwner && !isAdmin && !userHasPasskontroll && !hasAllowedRole) {
+        const deniedMsg =
+          '❌ **Keine Berechtigung!**\n\n' +
+          `Um diesen Bot zu nutzen, weise dir einfach die Rolle **${ROLE_NAME}** zu (oder bitte einen Admin darum).\n` +
+          (settings.allowed_role_id ? `Alternativ ist auch die Rolle <@&${settings.allowed_role_id}> freigeschaltet.\n\n` : '\n') +
+          '*(Tipp: Führe `/wasistdasproblem` aus, um deine aktuellen Berechtigungen zu überprüfen).*';
 
         return await interaction.reply({
           content: deniedMsg,

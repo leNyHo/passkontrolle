@@ -1,0 +1,198 @@
+import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { getGuildSettings } from '../services/database.js';
+import { COLORS } from '../utils/embeds.js';
+import { ensurePasskontrollRole, hasPasskontrollRole, ROLE_NAME } from '../utils/roles.js';
+
+export const data = new SlashCommandBuilder()
+  .setName('wasistdasproblem')
+  .setDescription('Diagnose-Tool: Prüft Berechtigungen, Kanalrechte und Rollen für den Bot.')
+  .addUserOption((option) =>
+    option
+      .setName('user')
+      .setDescription('Optional: Bestimmten Nutzer prüfen, der den Bot nicht nutzen kann')
+      .setRequired(false)
+  );
+
+export async function execute(interaction) {
+  try {
+    await interaction.deferReply();
+  } catch (e) {
+    console.error('deferReply failed:', e);
+  }
+
+  try {
+    const guild = interaction.guild;
+    if (!guild) {
+      return await interaction.editReply({
+        content: '❌ Dieser Befehl kann nur auf einem Discord-Server ausgeführt werden.'
+      });
+    }
+
+    const channel = interaction.channel;
+    const targetUser = interaction.options.getUser('user') || interaction.user;
+
+    // Bot-Member & Ziel-Member sicher abrufen
+    const botMember = guild.members.me || (await guild.members.fetchMe().catch(() => null));
+    const targetMember = await guild.members.fetch(targetUser.id).catch(() => null);
+
+    const settings = getGuildSettings(guild.id);
+    const issues = [];
+    const checks = [];
+
+    // ==========================================
+    // 1. Prüfung: Bot-Rechte im aktuellen Kanal
+    // ==========================================
+    const botChannelPerms = botMember && channel?.permissionsFor ? channel.permissionsFor(botMember) : null;
+    const botCanView = botChannelPerms ? botChannelPerms.has(PermissionFlagsBits.ViewChannel) : true;
+    const botCanSend = botChannelPerms ? botChannelPerms.has(PermissionFlagsBits.SendMessages) : true;
+    const botCanEmbed = botChannelPerms ? botChannelPerms.has(PermissionFlagsBits.EmbedLinks) : true;
+
+    if (!botCanView) {
+      issues.push('❌ **Bot kann diesen Kanal nicht sehen:** Deshalb taucht der Bot in der rechten Mitgliederliste dieses Kanals NICHT auf.');
+    } else {
+      checks.push('✅ **Bot hat Kanalzugriff:** Er kann diesen Textkanal sehen.');
+    }
+
+    if (!botCanSend || !botCanEmbed) {
+      issues.push('❌ **Bot fehlen Schreib-/Embed-Rechte:** Der Bot benötigt "Nachrichten senden" und "Links einbetten" in diesem Kanal.');
+    } else {
+      checks.push('✅ **Bot kann Nachrichten & Embeds senden.**');
+    }
+
+    // ==========================================
+    // 2. Prüfung: Rolle "Passkontroll-User"
+    // ==========================================
+    let passkontrollRole = guild.roles.cache.find(r => r.name.toLowerCase() === ROLE_NAME.toLowerCase());
+    if (!passkontrollRole) {
+      const fetchedRoles = await guild.roles.fetch().catch(() => null);
+      if (fetchedRoles) {
+        passkontrollRole = fetchedRoles.find(r => r.name.toLowerCase() === ROLE_NAME.toLowerCase());
+      }
+    }
+
+    // Falls nicht vorhanden, versuchen automatisch zu erstellen
+    let createdNow = false;
+    if (!passkontrollRole) {
+      passkontrollRole = await ensurePasskontrollRole(guild);
+      if (passkontrollRole) createdNow = true;
+    }
+
+    if (passkontrollRole) {
+      if (createdNow) {
+        checks.push(`🎉 **Rolle <@&${passkontrollRole.id}> soeben automatisch erstellt!**`);
+      } else {
+        checks.push(`✅ **Rolle "${ROLE_NAME}" existiert auf dem Server:** <@&${passkontrollRole.id}>`);
+      }
+    } else {
+      issues.push(
+        `⚠️ **Rolle "${ROLE_NAME}" existiert noch nicht:**\n` +
+        `> Erstelle eine Rolle mit dem genauen Namen \`${ROLE_NAME}\` in den Server-Einstellungen. Jeder mit dieser Rolle kann den Bot sofort nutzen!`
+      );
+    }
+
+    // ==========================================
+    // 3. Prüfung: Ziel-Nutzer Rechte & Rollen
+    // ==========================================
+    if (targetMember) {
+      const userChannelPerms = channel?.permissionsFor ? channel.permissionsFor(targetMember) : null;
+      const userIsOwner = guild.ownerId === targetMember.id;
+      const userIsAdmin = targetMember.permissions?.has ? targetMember.permissions.has(PermissionFlagsBits.Administrator) : false;
+      const userCanView = userChannelPerms ? userChannelPerms.has(PermissionFlagsBits.ViewChannel) : true;
+      const userCanUseCommands = userChannelPerms ? userChannelPerms.has(PermissionFlagsBits.UseApplicationCommands) : true;
+
+      const userHasPasskontroll = hasPasskontrollRole(targetMember, guild);
+
+      const hasAllowedRole = Boolean(
+        settings.allowed_role_id && (
+          targetMember.roles?.cache?.has(settings.allowed_role_id) ||
+          (Array.isArray(targetMember.roles) && targetMember.roles.includes(settings.allowed_role_id))
+        )
+      );
+
+      if (userIsOwner) {
+        checks.push(`✅ **${targetUser.username} ist Server-Owner:** Voller Zugriff auf alle Befehle.`);
+      } else if (userIsAdmin) {
+        checks.push(`✅ **${targetUser.username} ist Discord-Administrator:** Voller Zugriff auf alle Befehle.`);
+      } else if (userHasPasskontroll) {
+        checks.push(`✅ **${targetUser.username} hat die Rolle "${ROLE_NAME}":** Voller Zugriff auf alle Bot-Befehle!`);
+      } else if (hasAllowedRole) {
+        checks.push(`✅ **${targetUser.username} hat die freigeschaltete Rolle <@&${settings.allowed_role_id}>:** Voller Zugriff auf alle Bot-Befehle.`);
+      } else {
+        issues.push(
+          `🚨 **${targetUser.username} hat noch keine Nutzungsberechtigung!**\n` +
+          (passkontrollRole
+            ? `> 👉 **Lösung:** Weise ${targetUser.username} die Rolle <@&${passkontrollRole.id}> zu!\n`
+            : `> 👉 **Lösung:** Erstelle die Rolle \`${ROLE_NAME}\` und weise sie ${targetUser.username} zu!\n`) +
+          `> Alternativ kann ein Server-Admin mit \`/erlauberolle @Rolle\` eine beliebige bestehende Rolle freischalten.`
+        );
+      }
+
+      if (!userCanView) {
+        issues.push(`❌ **${targetUser.username} kann diesen Kanal nicht sehen:** Nutzer hat keine Leserechte für <#${channel.id}>.`);
+      }
+
+      if (!userCanUseCommands) {
+        issues.push(`❌ **Slash-Commands blockiert:** Die Berechtigung "Anwendungsbefehle verwenden" ist für ${targetUser.username} in diesem Kanal deaktiviert.`);
+      }
+    }
+
+    // ==========================================
+    // 4. Prüfung: Bot-Konfiguration
+    // ==========================================
+    if (!settings.clan_tag) {
+      issues.push('⚠️ **Kein Clan hinterlegt:** Es wurde noch kein Clan mit `/setclan [tag]` verknüpft.');
+    } else {
+      checks.push(`✅ **Clan hinterlegt:** \`${settings.clan_tag}\``);
+    }
+
+    if (!settings.channel_id) {
+      issues.push('⚠️ **Kein Report-Kanal:** Es wurde noch kein Zielkanal mit `/setchannel` festgelegt.');
+    } else {
+      checks.push(`✅ **Report-Kanal hinterlegt:** <#${settings.channel_id}>`);
+    }
+
+    if (settings.allowed_role_id) {
+      checks.push(`✅ **Zusätzliche Freigabe-Rolle aktiv:** <@&${settings.allowed_role_id}>`);
+    }
+
+    // ==========================================
+    // Embed zusammenbauen
+    // ==========================================
+    const hasErrors = issues.length > 0;
+    const embed = new EmbedBuilder()
+      .setColor(hasErrors ? COLORS.DANGER_RED : COLORS.SUCCESS_GREEN)
+      .setTitle(`🔍 Diagnose-Bericht für Server: ${guild.name}`)
+      .setDescription(
+        `Geprüfter Kanal: <#${channel.id}>\n` +
+        `Geprüfter Nutzer: <@${targetUser.id}> (${targetUser.tag})\n` +
+        `Server-Owner: <@${guild.ownerId}>\n\n` +
+        (hasErrors
+          ? '⚠️ **Gefundene Probleme & Lösungen:**\n' + issues.join('\n\n')
+          : '🎉 **Alles optimal konfiguriert!** Du hast vollen Zugriff auf den Bot.')
+      )
+      .addFields(
+        {
+          name: '📋 Status-Prüfungen',
+          value: checks.length > 0 ? checks.join('\n') : 'Keine',
+          inline: false
+        },
+        {
+          name: '💡 Schnellstart ohne Admin-Rechte',
+          value:
+            `1. **Rolle zuweisen:** Gib dir die Rolle **${ROLE_NAME}**.\n` +
+            '2. **Discord Client-Cache:** Drücke in Discord einmal **STRG + R** (Mac: **CMD + R**), falls Befehle im Menü noch laden.\n' +
+            '3. **Fertig:** Danach kannst du `/angriffe`, `/erinnerung` und alle weiteren Befehle uneingeschränkt nutzen!',
+          inline: false
+        }
+      )
+      .setFooter({ text: 'Clash Royale Bot • Selbstdiagnose' })
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (err) {
+    console.error('Fehler in /wasistdasproblem:', err);
+    await interaction.editReply({
+      content: `❌ **Diagnose-Fehler:** \`${err.message}\`\n\`\`\`${err.stack?.slice(0, 500)}\`\`\``
+    }).catch(() => {});
+  }
+}

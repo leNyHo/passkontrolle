@@ -11,7 +11,9 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
 - **💾 SQLite-Datenbank (Persistent):** Speichert kumulativ alle verpassten Decks pro Spieler in einer lokalen Datenbank (`clashbot.db`).
 - **🚨 Automatische Kick-Vorschläge:** Spieler mit **5 oder mehr verpassten Decks** werden im Tagesbericht prominent als Kick-Kandidaten ausgewiesen.
 - **🛠️ Vollständige Admin & Co-Leader Slash-Commands:**
+  - `/wasistdasproblem [user]` – Diagnose-Tool (für alle Rollen zugänglich): Prüft Berechtigungen, Rollen und Kanaleinstellungen.
   - `/erlauberolle [Rolle]` – Erlaubt einer Rolle (z. B. `@Co-Leader`) die volle Bot-Nutzung ohne Discord-Admin-Rechte.
+  - *(Tipp: Nutzer mit der Rolle `Passkontroll-User` haben automatisch vollen Zugriff auf alle Befehle!)*
   - `/angriffe` – Live-Kriegsstatus sofort abrufen (welche Decks fehlen heute noch?).
   - `/erinnerung` – Erstellt eine fertige Erinnerungsnachricht (`@Name (offene Decks)`) zum Pingen/Kopieren.
   - `/verwarnungen` – Gesamtübersicht aller Spieler mit verpassten Decks & Kick-Kandidaten (ab 5+ Decks).
@@ -21,7 +23,6 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
   - `/seterinnerung [Text]` – Eigenen Einleitungstext für die `/erinnerung` Nachricht hinterlegen.
   - `/resetstrikes [Spieler-Tag]` – Verpasste Decks für einen einzelnen Spieler auf 0 zurücksetzen.
   - `/resetallstrikes` – Setzt die Verwarnungen **aller** Spieler auf 0 zurück (mit Bestätigungsabfrage).
-  - `/warumgehtsnicht [user]` – Diagnose-Tool: Prüft Serverrechte, Rollen und Kanaleinstellungen.
   - `/help` – Zeigt eine formatierte Übersicht aller Befehle.
 
 ---
@@ -248,12 +249,12 @@ Gehe in deinen Discord-Server in deinen Admin-Kanal und führe nacheinander folg
    /resetallstrikes
    ```
 
-10. **Diagnose-Tool ausführen (falls jemand den Bot nicht sieht/nutzen kann):**
+10. **Diagnose-Tool ausführen (für alle Rollen freigeschaltet):**
     ```
-    /warumgehtsnicht
-    /warumgehtsnicht user:@Name
+    /wasistdasproblem
+    /wasistdasproblem user:@Name
     ```
-    *Prüft sofort Bot-Rechte, Kanal-Sichtbarkeit und fehlende Admin-Berechtigungen.*
+    *Prüft sofort Bot-Rechte, Kanal-Sichtbarkeit und die Rolle `Passkontroll-User`. Gibt bei Fehlern eine genaue Fehlerursache aus.*
 
 11. **Hilfe aufrufen:**
     ```

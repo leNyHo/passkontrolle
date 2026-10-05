@@ -30,7 +30,9 @@ const { normalizeClanTag, encodeClanTag } = await import('../src/services/clashR
 const { timeToCronExpression } = await import('../src/services/scheduler.js');
 const { createWarReportEmbed, createStatusEmbed, createStrikesEmbed } = await import('../src/utils/embeds.js');
 const warumgehtsnicht = await import('../src/commands/warumgehtsnicht.js');
+const wasistdasproblem = await import('../src/commands/wasistdasproblem.js');
 const erlauberolle = await import('../src/commands/erlauberolle.js');
+const { hasPasskontrollRole, ROLE_NAME } = await import('../src/utils/roles.js');
 
 // Test 1: Clan Tag Normalisierung
 console.log('▶ Test 1: Clan-Tag Normalisierung & URL-Encoding');
@@ -39,14 +41,40 @@ assert.equal(normalizeClanTag('#abc123xyz'), '#ABC123XYZ');
 assert.equal(encodeClanTag('2pp'), '%232PP');
 console.log('  ✔ Clan-Tag Tests erfolgreich!\n');
 
-// Test 2: Cron-Time Konverter
+// Test 2: Cron-Time Konverter & Commands
 console.log('▶ Test 2: Zeit-zu-Cron Konverter & Command-Exporte');
 assert.equal(timeToCronExpression('12:00'), '0 12 * * *');
 assert.equal(timeToCronExpression('09:45'), '45 9 * * *');
 assert.equal(timeToCronExpression('18:05'), '5 18 * * *');
 assert.ok(warumgehtsnicht.data.name === 'warumgehtsnicht');
+assert.ok(wasistdasproblem.data.name === 'wasistdasproblem');
 assert.ok(erlauberolle.data.name === 'erlauberolle');
 console.log('  ✔ Cron-Konverter & Command-Export Tests erfolgreich!\n');
+
+// Test 2b: Rolle "Passkontroll-User" Prüfung
+console.log('▶ Test 2b: Rolle Passkontroll-User Erkennung');
+assert.equal(ROLE_NAME, 'Passkontroll-User');
+
+const mockMemberWithRole = {
+  roles: {
+    cache: new Map([
+      ['role-1', { id: 'role-1', name: 'Member' }],
+      ['role-2', { id: 'role-2', name: 'passkontroll-user' }]
+    ])
+  }
+};
+mockMemberWithRole.roles.cache.some = Array.prototype.some.bind([...mockMemberWithRole.roles.cache.values()]);
+
+const mockMemberWithoutRole = {
+  roles: {
+    cache: new Map([['role-1', { id: 'role-1', name: 'Member' }]])
+  }
+};
+mockMemberWithoutRole.roles.cache.some = Array.prototype.some.bind([...mockMemberWithoutRole.roles.cache.values()]);
+
+assert.equal(hasPasskontrollRole(mockMemberWithRole), true);
+assert.equal(hasPasskontrollRole(mockMemberWithoutRole), false);
+console.log('  ✔ Rollen-Prüfung erfolgreich!\n');
 
 // Test 3: Datenbank-Operationen
 console.log('▶ Test 3: SQLite Datenbank & Guild Settings');
