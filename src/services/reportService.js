@@ -1,5 +1,12 @@
-import { getGuildSettings, saveGuildSettings, recordMissedDecks, getKickCandidates, getPlayerStrikes } from './database.js';
-import { getWarParticipation } from './clashRoyale.js';
+import {
+  getGuildSettings,
+  saveGuildSettings,
+  recordMissedDecks,
+  getKickCandidates,
+  getPlayerStrikes,
+  pruneStrikesNotInMemberList
+} from './database.js';
+import { getWarParticipation, getClanInfo, normalizeClanTag } from './clashRoyale.js';
 import { createWarReportEmbed } from '../utils/embeds.js';
 import { config } from '../config.js';
 
@@ -75,6 +82,24 @@ export async function executeWarReminder(client, guildId) {
 }
 
 /**
+ * Gleicht die aktuelle Clanmitglieder-Liste mit der Verwarnliste in der Datenbank ab
+ * und löscht alle ausgetretenen Spieler aus player_strikes.
+ */
+export async function syncClanMembersAndPruneStrikes(clanTag) {
+  if (!clanTag) return { prunedCount: 0, prunedPlayers: [] };
+
+  try {
+    const clanInfo = await getClanInfo(clanTag);
+    const memberTags = (clanInfo.memberList || []).map((m) => m.tag);
+    const pruned = pruneStrikesNotInMemberList(memberTags, normalizeClanTag(clanTag));
+    return { prunedCount: pruned.length, prunedPlayers: pruned };
+  } catch (error) {
+    console.warn(`[Sync] Fehler beim Abgleich der Clanmitglieder für ${clanTag}:`, error.message);
+    return { prunedCount: 0, prunedPlayers: [], error };
+  }
+}
+
+/**
  * Erstellt den Clankriegs-Abschlussbericht
  * @param {object} client - Discord Client
  * @param {string} guildId - Server-ID
@@ -130,6 +155,13 @@ export async function executeWarReport(client, guildId, options = {}) {
 
     saveGuildSettings(guildId, { last_report_date: todayDateStr });
   }
+
+  // Ehemalige Clan-Mitglieder aus der Verwarn-Datenbank bereinigen
+  const allCurrentMemberTags = [
+    ...warData.completed.map((p) => p.tag),
+    ...warData.incomplete.map((p) => p.tag)
+  ];
+  pruneStrikesNotInMemberList(allCurrentMemberTags, warData.clanTag);
 
   // Daten anreichern: Gesamt-Fehlangriffe jedes unvollständigen Spielers ermitteln
   const enrichedIncomplete = warData.incomplete.map((player) => {

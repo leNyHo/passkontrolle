@@ -155,12 +155,17 @@ export function createStatusEmbed({
 /**
  * Erstellt das Embed für die Verwarnungen-Übersicht (/verwarnungen)
  */
-export function createStrikesEmbed({ strikesList = [], threshold = 5 }) {
+export function createStrikesEmbed({ strikesList = [], threshold = 5, prunedCount = 0 }) {
   const embed = new EmbedBuilder()
     .setColor(COLORS.INFO_BLUE)
-    .setTitle('📋 Übersicht der verpassten Clankriegs-Decks (Verwarnungen)')
-    .setDescription(`Spieler mit **${threshold} oder mehr** verpassten Decks sind für einen Kick vorgemerkt.`)
-    .setTimestamp();
+    .setTitle('📋 Übersicht der verpassten Clankriegs-Decks (Verwarnungen)');
+
+  let desc = `Spieler mit **${threshold} oder mehr** verpassten Decks sind für einen Kick vorgemerkt.`;
+  if (prunedCount > 0) {
+    desc += `\n*(ℹ️ **${prunedCount}** ausgetretene(r) Spieler automatisch aus der Liste bereinigt)*`;
+  }
+
+  embed.setDescription(desc).setTimestamp();
 
   if (strikesList.length === 0) {
     embed.addFields({

@@ -9,6 +9,7 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
 - **⏰ Pünktlicher Abschlussbericht:** Sendet zum eingestellten Kriegsende (standardmäßig 12:00 Uhr Berliner Zeit) einen formatierten Discord-Embed-Bericht.
 - **🎯 Exakte Beteiligungsprüfung:** Erkennt Clanmitglieder, die weniger als 4 Angriffe durchgeführt haben (`4 - gespielte Decks`).
 - **💾 SQLite-Datenbank (Persistent):** Speichert kumulativ alle verpassten Decks pro Spieler in einer lokalen Datenbank (`clashbot.db`).
+- **🔄 Automatischer Mitglieder-Abgleich:** Bei jedem `/verwarnungen` und jedem Abschlussbericht wird die Datenbank automatisch mit der aktuellen Clan-Mitgliederliste synchronisiert. Ausgetretene Spieler werden sofort aus der Verwarnliste entfernt!
 - **🚨 Automatische Kick-Vorschläge:** Spieler mit **5 oder mehr verpassten Decks** werden im Tagesbericht prominent als Kick-Kandidaten ausgewiesen.
 - **🛠️ Vollständige Admin & Co-Leader Slash-Commands:**
   - `/wasistdasproblem [user]` – Diagnose-Tool (für alle Rollen zugänglich): Prüft Berechtigungen, Rollen und Kanaleinstellungen.

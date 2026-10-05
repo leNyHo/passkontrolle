@@ -23,6 +23,7 @@ const {
   getAllStrikes,
   resetPlayerStrikes,
   resetAllStrikes,
+  pruneStrikesNotInMemberList,
   closeDatabase
 } = await import('../src/services/database.js');
 
@@ -118,6 +119,17 @@ const all = getAllStrikes(1);
 assert.equal(all.length, 3);
 assert.equal(all[0].player_name, 'Tom'); // Höchste zuerst
 
+// Test Clan-Mitglieder Abgleich (Pruning von ausgetretenen Spielern)
+// Lisa (#P2) verlässt den Clan, nur Max (#P1) und Tom (#P3) sind noch da
+const pruned = pruneStrikesNotInMemberList(['#P1', '#P3'], '#2PP');
+assert.equal(pruned.length, 1);
+assert.equal(pruned[0].player_tag, '#P2');
+assert.equal(pruned[0].player_name, 'Lisa');
+
+const allAfterPrune = getAllStrikes(1);
+assert.equal(allAfterPrune.length, 2);
+assert.equal(allAfterPrune.some(p => p.player_tag === '#P2'), false);
+
 // Einzel-Reset Test
 resetPlayerStrikes('#P3');
 const afterResetKicks = getKickCandidates(5);
@@ -127,7 +139,7 @@ assert.equal(afterResetKicks.length, 0);
 resetAllStrikes();
 const afterResetAll = getAllStrikes(1);
 assert.equal(afterResetAll.length, 0);
-console.log('  ✔ Strikes, Kick-Threshold (5+) & resetAllStrikes erfolgreich validiert!\n');
+console.log('  ✔ Strikes, Kick-Threshold (5+), Mitglieder-Abgleich & resetAllStrikes erfolgreich validiert!\n');
 
 // Test 5: Discord Embed Erstellung
 console.log('▶ Test 5: Discord Embed Rendering (ohne Verwarnnachricht, ohne Fortsetzung X)');

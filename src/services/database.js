@@ -228,6 +228,57 @@ export function resetAllStrikes() {
   return (info?.changes || 0) > 0;
 }
 
+/**
+ * Löscht Spieler aus der Verwarnliste (player_strikes), die sich nicht mehr in der aktuellen Clan-Mitgliederliste befinden.
+ * @param {string[]|Set<string>} currentMemberTags - Liste der aktuell im Clan befindlichen Spieler-Tags
+ * @param {string|null} clanTag - Optionaler Clan-Tag zur Eingrenzung
+ * @returns {Array} Liste der gelöschten Spieler-Objekte
+ */
+export function pruneStrikesNotInMemberList(currentMemberTags, clanTag = null) {
+  if (!currentMemberTags) return [];
+
+  const tagSet = new Set(
+    (Array.isArray(currentMemberTags) ? currentMemberTags : [...currentMemberTags])
+      .map((tag) => (typeof tag === 'string' ? tag.trim().toUpperCase() : ''))
+  );
+
+  const database = getDatabase();
+
+  let allStrikes;
+  if (clanTag) {
+    const normTag = clanTag.trim().toUpperCase();
+    allStrikes = database
+      .prepare('SELECT player_tag, player_name, clan_tag, total_missed_decks FROM player_strikes WHERE clan_tag = ? OR clan_tag IS NULL')
+      .all(normTag);
+  } else {
+    allStrikes = database
+      .prepare('SELECT player_tag, player_name, clan_tag, total_missed_decks FROM player_strikes')
+      .all();
+  }
+
+  const toDelete = allStrikes.filter((p) => !tagSet.has(p.player_tag?.trim().toUpperCase()));
+
+  if (toDelete.length === 0) return [];
+
+  const deleteStmt = database.prepare('DELETE FROM player_strikes WHERE player_tag = ?');
+  database.exec('BEGIN TRANSACTION;');
+  try {
+    for (const player of toDelete) {
+      deleteStmt.run(player.player_tag);
+    }
+    database.exec('COMMIT;');
+  } catch (error) {
+    database.exec('ROLLBACK;');
+    throw error;
+  }
+
+  console.log(
+    `[Strikes] ${toDelete.length} ausgetretene(r) Spieler aus Verwarnliste entfernt:`,
+    toDelete.map((p) => `${p.player_name} (${p.player_tag})`).join(', ')
+  );
+  return toDelete;
+}
+
 export function closeDatabase() {
   if (db) {
     try {
