@@ -11,7 +11,6 @@ import {
 import { config, validateConfig } from './config.js';
 import { getDatabase, closeDatabase, getGuildSettings } from './services/database.js';
 import { initScheduler, stopAllSchedulers, scheduleGuildWarEnd } from './services/scheduler.js';
-import { ensurePasskontrollRole, hasPasskontrollRole, ROLE_NAME } from './utils/roles.js';
 
 // Befehle importieren
 import * as erlauberolleCommand from './commands/erlauberolle.js';
@@ -101,11 +100,6 @@ client.once(Events.ClientReady, async (c) => {
 
   c.user.setActivity('⚔️[BETA] ES KÖNNEN FEHLER AUFTRETEN⚔️', { type: ActivityType.Custom });
 
-  // Rolle "Passkontroll-User" auf allen Servern sicherstellen
-  for (const guild of c.guilds.cache.values()) {
-    await ensurePasskontrollRole(guild);
-  }
-
   // Slash-Commands sofort aktualisieren
   await registerSlashCommands();
 
@@ -116,7 +110,6 @@ client.once(Events.ClientReady, async (c) => {
 // Event: Neuer Server beigetreten
 client.on(Events.GuildCreate, async (guild) => {
   console.log(`[Discord] Neuem Server beigetreten: "${guild.name}" (${guild.id})`);
-  await ensurePasskontrollRole(guild);
   scheduleGuildWarEnd(client, guild.id, config.defaultWarEndTime, config.timezone);
 
   if (config.discordToken && config.discordClientId) {
@@ -167,18 +160,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } else {
       const isOwner = guild.ownerId === interaction.user.id;
       const isAdmin = Boolean(interaction.member?.permissions?.has?.(PermissionFlagsBits.Administrator));
-      const userHasPasskontroll = hasPasskontrollRole(interaction.member, guild);
 
-      // 1. /erlauberolle darf von Server-Owner, Discord-Administratoren oder Mitgliedern mit der Rolle "Passkontroll-User" ausgeführt werden
+      // 1. /erlauberolle darf nur von Server-Owner oder Discord-Administratoren ausgeführt werden
       if (interaction.commandName === 'erlauberolle') {
-        if (!isOwner && !isAdmin && !userHasPasskontroll) {
+        if (!isOwner && !isAdmin) {
           return await interaction.reply({
-            content: `❌ **Keine Berechtigung!** Nur der Server-Owner, Discord-Administratoren oder Nutzer mit der Rolle **${ROLE_NAME}** können berechtigte Rollen festlegen.`,
+            content: '❌ **Keine Berechtigung!** Nur der Server-Owner oder Discord-Administratoren können berechtigte Rollen festlegen.',
             ephemeral: true
           });
         }
       } else {
-        // 2. Für alle anderen Befehle: Server-Owner, Discord-Admin, Rolle "Passkontroll-User" ODER freigeschaltete Rolle via /erlauberolle
+        // 2. Für alle anderen Befehle: Server-Owner, Discord-Admin ODER freigeschaltete Rolle via /erlauberolle
         const settings = getGuildSettings(interaction.guildId);
 
         const hasAllowedRole = Boolean(
@@ -188,11 +180,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
           )
         );
 
-        if (!isOwner && !isAdmin && !userHasPasskontroll && !hasAllowedRole) {
+        if (!isOwner && !isAdmin && !hasAllowedRole) {
           const deniedMsg =
             '❌ **Keine Berechtigung!**\n\n' +
-            `Um diesen Bot zu nutzen, weise dir einfach die Rolle **${ROLE_NAME}** zu (oder bitte einen Admin darum).\n` +
-            (settings.allowed_role_id ? `Alternativ ist auch die Rolle <@&${settings.allowed_role_id}> freigeschaltet.\n\n` : '\n') +
+            (settings.allowed_role_id
+              ? `Du benötigst Discord-Administrator-Rechte oder die freigeschaltete Rolle <@&${settings.allowed_role_id}>, um diesen Bot zu nutzen.\n\n`
+              : 'Du benötigst Discord-Administrator-Rechte, um diesen Bot zu nutzen (oder ein Admin schaltet deine Rolle mit `/erlauberolle @Rolle` frei).\n\n') +
             '*(Tipp: Führe `/wasistdasproblem` aus, um deine aktuellen Berechtigungen zu überprüfen).*';
 
           return await interaction.reply({

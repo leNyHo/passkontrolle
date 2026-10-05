@@ -14,7 +14,6 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
 - **🛠️ Vollständige Admin & Co-Leader Slash-Commands:**
   - `/wasistdasproblem [user]` – Diagnose-Tool (für alle Rollen zugänglich): Prüft Berechtigungen, Rollen und Kanaleinstellungen.
   - `/erlauberolle [Rolle]` – Erlaubt einer Rolle (z. B. `@Co-Leader`) die volle Bot-Nutzung ohne Discord-Admin-Rechte.
-  - *(Tipp: Nutzer mit der Rolle `Passkontroll-User` haben automatisch vollen Zugriff auf alle Befehle!)*
   - `/angriffe` – Live-Kriegsstatus sofort abrufen (welche Decks fehlen heute noch?).
   - `/erinnerung` – Erstellt eine fertige Erinnerungsnachricht (`@Name (offene Decks)`) zum Pingen/Kopieren.
   - `/verwarnungen` – Gesamtübersicht aller Spieler mit verpassten Decks & Kick-Kandidaten (ab 5+ Decks).
@@ -255,7 +254,7 @@ Gehe in deinen Discord-Server in deinen Admin-Kanal und führe nacheinander folg
     /wasistdasproblem
     /wasistdasproblem user:@Name
     ```
-    *Prüft sofort Bot-Rechte, Kanal-Sichtbarkeit und die Rolle `Passkontroll-User`. Gibt bei Fehlern eine genaue Fehlerursache aus.*
+    *Prüft sofort Bot-Rechte, Kanal-Sichtbarkeit und Server-Rollen. Gibt bei Fehlern eine genaue Fehlerursache aus.*
 
 11. **Hilfe aufrufen:**
     ```

@@ -1,7 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 import { getGuildSettings } from '../services/database.js';
 import { COLORS } from '../utils/embeds.js';
-import { ensurePasskontrollRole, hasPasskontrollRole, ROLE_NAME } from '../utils/roles.js';
 
 export const data = new SlashCommandBuilder()
   .setName('wasistdasproblem')
@@ -85,38 +84,7 @@ export async function execute(interaction) {
     }
 
     // ==========================================
-    // 3. Prüfung: Rolle "Passkontroll-User"
-    // ==========================================
-    let passkontrollRole = guild.roles.cache.find(r => r.name.toLowerCase() === ROLE_NAME.toLowerCase());
-    if (!passkontrollRole) {
-      const fetchedRoles = await guild.roles.fetch().catch(() => null);
-      if (fetchedRoles) {
-        passkontrollRole = fetchedRoles.find(r => r.name.toLowerCase() === ROLE_NAME.toLowerCase());
-      }
-    }
-
-    // Falls nicht vorhanden, versuchen automatisch zu erstellen
-    let createdNow = false;
-    if (!passkontrollRole) {
-      passkontrollRole = await ensurePasskontrollRole(guild);
-      if (passkontrollRole) createdNow = true;
-    }
-
-    if (passkontrollRole) {
-      if (createdNow) {
-        checks.push(`🎉 **Rolle <@&${passkontrollRole.id}> soeben automatisch erstellt!**`);
-      } else {
-        checks.push(`✅ **Rolle "${ROLE_NAME}" existiert auf dem Server:** <@&${passkontrollRole.id}>`);
-      }
-    } else {
-      issues.push(
-        `⚠️ **Rolle "${ROLE_NAME}" existiert noch nicht:**\n` +
-        `> Erstelle eine Rolle mit dem genauen Namen \`${ROLE_NAME}\` in den Server-Einstellungen. Jeder mit dieser Rolle kann den Bot sofort nutzen!`
-      );
-    }
-
-    // ==========================================
-    // 4. Prüfung: Ziel-Nutzer Rechte & Rollen
+    // 3. Prüfung: Ziel-Nutzer Rechte & Rollen
     // ==========================================
     if (targetMember) {
       const userChannelPerms = channel?.permissionsFor ? channel.permissionsFor(targetMember) : null;
@@ -124,8 +92,6 @@ export async function execute(interaction) {
       const userIsAdmin = targetMember.permissions?.has ? targetMember.permissions.has(PermissionFlagsBits.Administrator) : false;
       const userCanView = userChannelPerms ? userChannelPerms.has(PermissionFlagsBits.ViewChannel) : true;
       const userCanUseCommands = userChannelPerms ? userChannelPerms.has(PermissionFlagsBits.UseApplicationCommands) : true;
-
-      const userHasPasskontroll = hasPasskontrollRole(targetMember, guild);
 
       const hasAllowedRole = Boolean(
         settings.allowed_role_id && (
@@ -138,17 +104,12 @@ export async function execute(interaction) {
         checks.push(`✅ **${targetUser.username} ist Server-Owner:** Voller Zugriff auf alle Befehle.`);
       } else if (userIsAdmin) {
         checks.push(`✅ **${targetUser.username} ist Discord-Administrator:** Voller Zugriff auf alle Befehle.`);
-      } else if (userHasPasskontroll) {
-        checks.push(`✅ **${targetUser.username} hat die Rolle "${ROLE_NAME}":** Voller Zugriff auf alle Bot-Befehle!`);
       } else if (hasAllowedRole) {
         checks.push(`✅ **${targetUser.username} hat die freigeschaltete Rolle <@&${settings.allowed_role_id}>:** Voller Zugriff auf alle Bot-Befehle.`);
       } else {
         issues.push(
           `🚨 **${targetUser.username} hat noch keine Nutzungsberechtigung!**\n` +
-          (passkontrollRole
-            ? `> 👉 **Lösung:** Weise ${targetUser.username} die Rolle <@&${passkontrollRole.id}> zu!\n`
-            : `> 👉 **Lösung:** Erstelle die Rolle \`${ROLE_NAME}\` und weise sie ${targetUser.username} zu!\n`) +
-          `> Alternativ kann ein Server-Admin mit \`/erlauberolle @Rolle\` eine beliebige bestehende Rolle freischalten.`
+          `> 👉 **Lösung:** Ein Server-Admin kann mit \`/erlauberolle @Rolle\` deine Rolle freischalten oder dir Discord-Administrator-Rechte erteilen.`
         );
       }
 
@@ -162,7 +123,7 @@ export async function execute(interaction) {
     }
 
     // ==========================================
-    // 5. Prüfung: Bot-Konfiguration
+    // 4. Prüfung: Bot-Konfiguration
     // ==========================================
     if (!settings.clan_tag) {
       issues.push('⚠️ **Kein Clan hinterlegt:** Es wurde noch kein Clan mit `/setclan [tag]` verknüpft.');
@@ -202,11 +163,10 @@ export async function execute(interaction) {
           inline: false
         },
         {
-          name: '💡 Schnellstart ohne Admin-Rechte',
+          name: '💡 Nutzung ohne Admin-Rechte',
           value:
-            `1. **Rolle zuweisen:** Gib dir die Rolle **${ROLE_NAME}**.\n` +
-            '2. **Discord Client-Cache:** Drücke in Discord einmal **STRG + R** (Mac: **CMD + R**), falls Befehle im Menü noch laden.\n' +
-            '3. **Fertig:** Danach kannst du `/angriffe`, `/erinnerung` und alle weiteren Befehle uneingeschränkt nutzen!',
+            '1. **Rolle freischalten:** Ein Admin führt `/erlauberolle @Rolle` aus (z. B. für @Co-Leader).\n' +
+            '2. **Fertig:** Danach können alle Mitglieder mit dieser Rolle alle Befehle des Bots nutzen!',
           inline: false
         }
       )

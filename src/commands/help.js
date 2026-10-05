@@ -30,8 +30,7 @@ export async function execute(interaction) {
           '• `/setchannel` – Legt den aktuellen Kanal als Ziel für den täglichen Abschlussbericht fest.\n' +
           '• `/settime [HH:MM]` – Passt die Kriegsende-Uhrzeit an (Europe/Berlin, Standard: `12:00`).\n' +
           '• `/seterinnerung [text]` – Ändert den Einleitungstext für die `/erinnerung` Nachricht.\n' +
-          '• `/help` – Öffnet diese Hilfeübersicht.\n\n' +
-          '*Hinweis: Nutzer mit der Rolle **Passkontroll-User** können alle Befehle direkt nutzen!*',
+          '• `/help` – Öffnet diese Hilfeübersicht.',
         inline: false
       },
       {
