@@ -16,7 +16,6 @@ import { ensurePasskontrollRole, hasPasskontrollRole, ROLE_NAME } from './utils/
 // Befehle importieren
 import * as erlauberolleCommand from './commands/erlauberolle.js';
 import * as wasistdasproblemCommand from './commands/wasistdasproblem.js';
-import * as warumgehtsnichtCommand from './commands/warumgehtsnicht.js';
 import * as angriffeCommand from './commands/angriffe.js';
 import * as erinnerungCommand from './commands/erinnerung.js';
 import * as verwarnungenCommand from './commands/verwarnungen.js';
@@ -43,7 +42,6 @@ client.commands = new Collection();
 const commandList = [
   erlauberolleCommand,
   wasistdasproblemCommand,
-  warumgehtsnichtCommand,
   angriffeCommand,
   erinnerungCommand,
   verwarnungenCommand,
@@ -132,40 +130,61 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
   // Rechteprüfung für Server-Befehle
   if (interaction.guildId) {
-    const isOwner = interaction.guild?.ownerId === interaction.user.id;
-    const isAdmin = Boolean(interaction.member?.permissions?.has?.(PermissionFlagsBits.Administrator));
+    let guild = interaction.guild;
+    if (!guild) {
+      guild = await interaction.client.guilds.fetch(interaction.guildId).catch(() => null);
+    }
 
-    // 1. /erlauberolle darf NUR von Server-Owner oder Discord-Administratoren ausgeführt werden
-    if (interaction.commandName === 'erlauberolle') {
-      if (!isOwner && !isAdmin) {
-        return await interaction.reply({
-          content: '❌ **Keine Berechtigung!** Nur der Server-Owner oder Discord-Administratoren können berechtigte Rollen festlegen.',
-          ephemeral: true
-        });
-      }
-    } else if (interaction.commandName !== 'wasistdasproblem' && interaction.commandName !== 'warumgehtsnicht') {
-      // 2. Für alle anderen Befehle: Server-Owner, Discord-Admin, Rolle "Passkontroll-User" ODER freigeschaltete Rolle via /erlauberolle
-      const settings = getGuildSettings(interaction.guildId);
-      const userHasPasskontroll = hasPasskontrollRole(interaction.member, interaction.guild);
+    // Diagnose-Befehl ist IMMER für jeden erlaubt
+    if (interaction.commandName === 'wasistdasproblem') {
+      // Direkt zur Ausführung weiterleiten
+    } else if (!guild) {
+      // Bot befindet sich nicht als Mitglied auf diesem Server (nur als User-App aufgerufen)
+      const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${interaction.client.user.id}&permissions=8&integration_type=0&scope=bot+applications.commands`;
+      return await interaction.reply({
+        content:
+          '🚨 **Der Bot ist diesem Discord-Server noch nicht als Server-Bot beigetreten!**\n\n' +
+          'Damit der Bot auf Server-Kanäle, Rollen und Befehle zugreifen kann, muss er vom Server-Owner eingeladen werden:\n' +
+          `🔗 **[Hier klicken: Bot auf den Server einladen](${inviteUrl})**\n\n` +
+          '*(Tipp: Führe `/wasistdasproblem` aus für weitere Informationen).*',
+        ephemeral: true
+      });
+    } else {
+      const isOwner = guild.ownerId === interaction.user.id;
+      const isAdmin = Boolean(interaction.member?.permissions?.has?.(PermissionFlagsBits.Administrator));
 
-      const hasAllowedRole = Boolean(
-        settings.allowed_role_id && (
-          interaction.member?.roles?.cache?.has(settings.allowed_role_id) ||
-          (Array.isArray(interaction.member?.roles) && interaction.member.roles.includes(settings.allowed_role_id))
-        )
-      );
+      // 1. /erlauberolle darf NUR von Server-Owner oder Discord-Administratoren ausgeführt werden
+      if (interaction.commandName === 'erlauberolle') {
+        if (!isOwner && !isAdmin) {
+          return await interaction.reply({
+            content: '❌ **Keine Berechtigung!** Nur der Server-Owner oder Discord-Administratoren können berechtigte Rollen festlegen.',
+            ephemeral: true
+          });
+        }
+      } else {
+        // 2. Für alle anderen Befehle: Server-Owner, Discord-Admin, Rolle "Passkontroll-User" ODER freigeschaltete Rolle via /erlauberolle
+        const settings = getGuildSettings(interaction.guildId);
+        const userHasPasskontroll = hasPasskontrollRole(interaction.member, guild);
 
-      if (!isOwner && !isAdmin && !userHasPasskontroll && !hasAllowedRole) {
-        const deniedMsg =
-          '❌ **Keine Berechtigung!**\n\n' +
-          `Um diesen Bot zu nutzen, weise dir einfach die Rolle **${ROLE_NAME}** zu (oder bitte einen Admin darum).\n` +
-          (settings.allowed_role_id ? `Alternativ ist auch die Rolle <@&${settings.allowed_role_id}> freigeschaltet.\n\n` : '\n') +
-          '*(Tipp: Führe `/wasistdasproblem` aus, um deine aktuellen Berechtigungen zu überprüfen).*';
+        const hasAllowedRole = Boolean(
+          settings.allowed_role_id && (
+            interaction.member?.roles?.cache?.has(settings.allowed_role_id) ||
+            (Array.isArray(interaction.member?.roles) && interaction.member.roles.includes(settings.allowed_role_id))
+          )
+        );
 
-        return await interaction.reply({
-          content: deniedMsg,
-          ephemeral: true
-        });
+        if (!isOwner && !isAdmin && !userHasPasskontroll && !hasAllowedRole) {
+          const deniedMsg =
+            '❌ **Keine Berechtigung!**\n\n' +
+            `Um diesen Bot zu nutzen, weise dir einfach die Rolle **${ROLE_NAME}** zu (oder bitte einen Admin darum).\n` +
+            (settings.allowed_role_id ? `Alternativ ist auch die Rolle <@&${settings.allowed_role_id}> freigeschaltet.\n\n` : '\n') +
+            '*(Tipp: Führe `/wasistdasproblem` aus, um deine aktuellen Berechtigungen zu überprüfen).*';
+
+          return await interaction.reply({
+            content: deniedMsg,
+            ephemeral: true
+          });
+        }
       }
     }
   }

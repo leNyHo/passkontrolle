@@ -21,11 +21,31 @@ export async function execute(interaction) {
   }
 
   try {
-    const guild = interaction.guild;
+    let guild = interaction.guild;
+    if (!guild && interaction.guildId) {
+      guild = await interaction.client.guilds.fetch(interaction.guildId).catch(() => null);
+    }
+
     if (!guild) {
-      return await interaction.editReply({
-        content: '❌ Dieser Befehl kann nur auf einem Discord-Server ausgeführt werden.'
-      });
+      if (interaction.guildId) {
+        const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${interaction.client.user.id}&permissions=8&integration_type=0&scope=bot+applications.commands`;
+        return await interaction.editReply({
+          content:
+            `🚨 **Hauptproblem gefunden: Der Bot ist diesem Discord-Server noch nicht als Server-Bot beigetreten!**\n\n` +
+            `> **Warum passiert das?**\n` +
+            `> Der Bot wurde vermutlich nur zu deinem persönlichen Account oder dem Account deines Kumpels als *Benutzer-App (User App)* hinzugefügt, ` +
+            `befindet sich aber **nicht als vollwertiges Mitglied auf diesem Server**!\n` +
+            `> Deshalb siehst du ihn **nicht in der rechten Mitgliederliste** und der Bot hat keinen Zugriff auf Server-Rollen oder Kanäle.\n\n` +
+            `👉 **Lösung (dauert 10 Sekunden):**\n` +
+            `Der Server-Owner (dein Kumpel) muss den Bot über folgenden Einladungslink auf den Server einladen:\n\n` +
+            `🔗 **[Hier klicken: Bot auf den Server einladen](${inviteUrl})**\n\n` +
+            `*(Wähle im Browser den Server aus und klicke auf "Autorisieren". Sobald der Bot rechts in der Mitgliederliste auftaucht, funktioniert alles sofort!)*`
+        });
+      } else {
+        return await interaction.editReply({
+          content: '❌ **Dieser Befehl kann nur auf einem Discord-Server (in einem Textkanal) ausgeführt werden, nicht in Direktnachrichten (DMs).**'
+        });
+      }
     }
 
     const channel = interaction.channel;
@@ -40,7 +60,12 @@ export async function execute(interaction) {
     const checks = [];
 
     // ==========================================
-    // 1. Prüfung: Bot-Rechte im aktuellen Kanal
+    // 1. Prüfung: Bot ist Server-Mitglied
+    // ==========================================
+    checks.push(`✅ **Bot ist Server-Mitglied:** Befindet sich auf Server "${guild.name}" (ID: \`${guild.id}\`).`);
+
+    // ==========================================
+    // 2. Prüfung: Bot-Rechte im aktuellen Kanal
     // ==========================================
     const botChannelPerms = botMember && channel?.permissionsFor ? channel.permissionsFor(botMember) : null;
     const botCanView = botChannelPerms ? botChannelPerms.has(PermissionFlagsBits.ViewChannel) : true;
@@ -48,7 +73,7 @@ export async function execute(interaction) {
     const botCanEmbed = botChannelPerms ? botChannelPerms.has(PermissionFlagsBits.EmbedLinks) : true;
 
     if (!botCanView) {
-      issues.push('❌ **Bot kann diesen Kanal nicht sehen:** Deshalb taucht der Bot in der rechten Mitgliederliste dieses Kanals NICHT auf.');
+      issues.push('❌ **Bot kann diesen Kanal nicht sehen:** Der Bot benötigt Leserechte für diesen Textkanal.');
     } else {
       checks.push('✅ **Bot hat Kanalzugriff:** Er kann diesen Textkanal sehen.');
     }
@@ -60,7 +85,7 @@ export async function execute(interaction) {
     }
 
     // ==========================================
-    // 2. Prüfung: Rolle "Passkontroll-User"
+    // 3. Prüfung: Rolle "Passkontroll-User"
     // ==========================================
     let passkontrollRole = guild.roles.cache.find(r => r.name.toLowerCase() === ROLE_NAME.toLowerCase());
     if (!passkontrollRole) {
@@ -91,7 +116,7 @@ export async function execute(interaction) {
     }
 
     // ==========================================
-    // 3. Prüfung: Ziel-Nutzer Rechte & Rollen
+    // 4. Prüfung: Ziel-Nutzer Rechte & Rollen
     // ==========================================
     if (targetMember) {
       const userChannelPerms = channel?.permissionsFor ? channel.permissionsFor(targetMember) : null;
@@ -137,7 +162,7 @@ export async function execute(interaction) {
     }
 
     // ==========================================
-    // 4. Prüfung: Bot-Konfiguration
+    // 5. Prüfung: Bot-Konfiguration
     // ==========================================
     if (!settings.clan_tag) {
       issues.push('⚠️ **Kein Clan hinterlegt:** Es wurde noch kein Clan mit `/setclan [tag]` verknüpft.');
