@@ -22,9 +22,8 @@ export async function execute(interaction) {
         inline: false
       },
       {
-        name: '⚙️ Konfiguration & Diagnose',
+        name: '⚙️ Konfiguration & Verwaltung',
         value:
-          '• `/wasistdasproblem [user]` – Diagnose-Tool: Prüft Berechtigungen, Rollen und Einstellungen (für alle Rollen).\n' +
           '• `/erlauberolle [rolle]` – Erlaubt einer Rolle (z. B. Co-Leader) die Bot-Nutzung ohne Admin-Rechte.\n' +
           '• `/setclan [tag]` – Legt den zu überwachenden Clan-Tag fest (z. B. `#2PP`).\n' +
           '• `/setchannel` – Legt den aktuellen Kanal als Ziel für den täglichen Abschlussbericht fest.\n' +

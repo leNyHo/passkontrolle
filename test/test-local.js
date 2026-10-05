@@ -30,7 +30,6 @@ const {
 const { normalizeClanTag, encodeClanTag } = await import('../src/services/clashRoyale.js');
 const { timeToCronExpression } = await import('../src/services/scheduler.js');
 const { createWarReportEmbed, createStatusEmbed, createStrikesEmbed } = await import('../src/utils/embeds.js');
-const wasistdasproblem = await import('../src/commands/wasistdasproblem.js');
 const erlauberolle = await import('../src/commands/erlauberolle.js');
 
 // Test 1: Clan Tag Normalisierung
@@ -45,7 +44,6 @@ console.log('▶ Test 2: Zeit-zu-Cron Konverter & Command-Exporte');
 assert.equal(timeToCronExpression('12:00'), '0 12 * * *');
 assert.equal(timeToCronExpression('09:45'), '45 9 * * *');
 assert.equal(timeToCronExpression('18:05'), '5 18 * * *');
-assert.ok(wasistdasproblem.data.name === 'wasistdasproblem');
 assert.ok(erlauberolle.data.name === 'erlauberolle');
 console.log('  ✔ Cron-Konverter & Command-Export Tests erfolgreich!\n');
 

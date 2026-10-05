@@ -14,7 +14,6 @@ import { initScheduler, stopAllSchedulers, scheduleGuildWarEnd } from './service
 
 // Befehle importieren
 import * as erlauberolleCommand from './commands/erlauberolle.js';
-import * as wasistdasproblemCommand from './commands/wasistdasproblem.js';
 import * as angriffeCommand from './commands/angriffe.js';
 import * as erinnerungCommand from './commands/erinnerung.js';
 import * as verwarnungenCommand from './commands/verwarnungen.js';
@@ -40,7 +39,6 @@ const client = new Client({
 client.commands = new Collection();
 const commandList = [
   erlauberolleCommand,
-  wasistdasproblemCommand,
   angriffeCommand,
   erinnerungCommand,
   verwarnungenCommand,
@@ -143,18 +141,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
       guild = await interaction.client.guilds.fetch(interaction.guildId).catch(() => null);
     }
 
-    // Diagnose-Befehl ist IMMER für jeden erlaubt
-    if (interaction.commandName === 'wasistdasproblem') {
-      // Direkt zur Ausführung weiterleiten
-    } else if (!guild) {
+    if (!guild) {
       // Bot befindet sich nicht als Mitglied auf diesem Server (nur als User-App aufgerufen)
       const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${interaction.client.user.id}&permissions=8&integration_type=0&scope=bot+applications.commands`;
       return await interaction.reply({
         content:
           '🚨 **Der Bot ist diesem Discord-Server noch nicht als Server-Bot beigetreten!**\n\n' +
           'Damit der Bot auf Server-Kanäle, Rollen und Befehle zugreifen kann, muss er vom Server-Owner eingeladen werden:\n' +
-          `🔗 **[Hier klicken: Bot auf den Server einladen](${inviteUrl})**\n\n` +
-          '*(Tipp: Führe `/wasistdasproblem` aus für weitere Informationen).*',
+          `🔗 **[Hier klicken: Bot auf den Server einladen](${inviteUrl})**`,
         ephemeral: true
       });
     } else {
@@ -184,9 +178,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
           const deniedMsg =
             '❌ **Keine Berechtigung!**\n\n' +
             (settings.allowed_role_id
-              ? `Du benötigst Discord-Administrator-Rechte oder die freigeschaltete Rolle <@&${settings.allowed_role_id}>, um diesen Bot zu nutzen.\n\n`
-              : 'Du benötigst Discord-Administrator-Rechte, um diesen Bot zu nutzen (oder ein Admin schaltet deine Rolle mit `/erlauberolle @Rolle` frei).\n\n') +
-            '*(Tipp: Führe `/wasistdasproblem` aus, um deine aktuellen Berechtigungen zu überprüfen).*';
+              ? `Du benötigst Discord-Administrator-Rechte oder die freigeschaltete Rolle <@&${settings.allowed_role_id}>, um diesen Bot zu nutzen.`
+              : 'Du benötigst Discord-Administrator-Rechte, um diesen Bot zu nutzen (oder ein Admin schaltet deine Rolle mit `/erlauberolle @Rolle` frei).');
 
           return await interaction.reply({
             content: deniedMsg,

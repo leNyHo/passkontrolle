@@ -12,7 +12,6 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
 - **🔄 Automatischer Mitglieder-Abgleich:** Bei jedem `/verwarnungen` und jedem Abschlussbericht wird die Datenbank automatisch mit der aktuellen Clan-Mitgliederliste synchronisiert. Ausgetretene Spieler werden sofort aus der Verwarnliste entfernt!
 - **🚨 Automatische Kick-Vorschläge:** Spieler mit **5 oder mehr verpassten Decks** werden im Tagesbericht prominent als Kick-Kandidaten ausgewiesen.
 - **🛠️ Vollständige Admin & Co-Leader Slash-Commands:**
-  - `/wasistdasproblem [user]` – Diagnose-Tool (für alle Rollen zugänglich): Prüft Berechtigungen, Rollen und Kanaleinstellungen.
   - `/erlauberolle [Rolle]` – Erlaubt einer Rolle (z. B. `@Co-Leader`) die volle Bot-Nutzung ohne Discord-Admin-Rechte.
   - `/angriffe` – Live-Kriegsstatus sofort abrufen (welche Decks fehlen heute noch?).
   - `/erinnerung` – Erstellt eine fertige Erinnerungsnachricht (`@Name (offene Decks)`) zum Pingen/Kopieren.
@@ -34,7 +33,7 @@ clash-royale-bot/
 ├── data/                      # Persistente SQLite-Datenbank (wird in Docker gemountet)
 │   └── clashbot.db
 ├── src/
-│   ├── commands/              # Slash Commands (/angriffe, /erinnerung, /wasistdasproblem, etc.)
+│   ├── commands/              # Slash Commands (/angriffe, /erinnerung, /setclan, etc.)
 │   ├── services/
 │   │   ├── clashRoyale.js     # Offizielle Supercell API Anbindung & Logik
 │   │   ├── database.js        # better-sqlite3 / node:sqlite Verwaltung & Historie
@@ -249,14 +248,7 @@ Gehe in deinen Discord-Server in deinen Admin-Kanal und führe nacheinander folg
    /resetallstrikes
    ```
 
-10. **Diagnose-Tool ausführen (für alle Rollen freigeschaltet):**
-    ```
-    /wasistdasproblem
-    /wasistdasproblem user:@Name
-    ```
-    *Prüft sofort Bot-Rechte, Kanal-Sichtbarkeit und Server-Rollen. Gibt bei Fehlern eine genaue Fehlerursache aus.*
-
-11. **Hilfe aufrufen:**
+10. **Hilfe aufrufen:**
     ```
     /help
     ```
