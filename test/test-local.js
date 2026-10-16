@@ -19,6 +19,8 @@ const {
   getGuildSettings,
   saveGuildSettings,
   recordMissedDecks,
+  recordMissedDecksBatch,
+  getPlayerStrikes,
   getKickCandidates,
   getAllStrikes,
   resetPlayerStrikes,
@@ -112,6 +114,37 @@ resetAllStrikes();
 const afterResetAll = getAllStrikes(1);
 assert.equal(afterResetAll.length, 0);
 console.log('  ✔ Strikes, Kick-Threshold (5+), Mitglieder-Abgleich & resetAllStrikes erfolgreich validiert!\n');
+
+// Test 4b: Multi-Server Idempotenz (Verhindert doppelte Verwarnungen wenn Bot auf 2 Servern läuft)
+console.log('▶ Test 4b: Multi-Server Schutz (Keine Verdopplung von Strafpunkten)');
+const playerSample = [{ tag: '#P99', name: 'MultiServerPlayer', missedDecks: 2 }];
+
+// Server 1 führt Report aus:
+const res1 = recordMissedDecksBatch('guild-alpha', '#CLAN123', '2026-10-16', playerSample);
+assert.equal(res1.insertedCount, 1);
+assert.equal(res1.skippedCount, 0);
+
+const strikeAfterServer1 = getPlayerStrikes('#P99');
+assert.equal(strikeAfterServer1.total_missed_decks, 2);
+
+// Server 2 führt Report für denselben Clan am selben Tag aus:
+const res2 = recordMissedDecksBatch('guild-beta', '#CLAN123', '2026-10-16', playerSample);
+assert.equal(res2.insertedCount, 0);
+assert.equal(res2.skippedCount, 1); // Übersprungen!
+
+// Strafpunkte dürfen NICHT verdoppelt worden sein (müssen immer noch 2 sein, nicht 4!):
+const strikeAfterServer2 = getPlayerStrikes('#P99');
+assert.equal(strikeAfterServer2.total_missed_decks, 2);
+
+// Clan-Filterung prüfen
+const clanStrikes = getAllStrikes('#CLAN123', 1);
+assert.equal(clanStrikes.length, 1);
+assert.equal(clanStrikes[0].player_tag, '#P99');
+
+const otherClanStrikes = getAllStrikes('#OTHERCLAN', 1);
+assert.equal(otherClanStrikes.length, 0);
+
+console.log('  ✔ Multi-Server Idempotenz erfolgreich validiert (Strafpunkte bleiben exakt bei 2)!\n');
 
 // Test 5: Discord Embed Erstellung
 console.log('▶ Test 5: Discord Embed Rendering (ohne Verwarnnachricht, ohne Fortsetzung X)');

@@ -4,7 +4,7 @@ import {
   ButtonBuilder,
   ButtonStyle
 } from 'discord.js';
-import { resetAllStrikes } from '../services/database.js';
+import { resetAllStrikes, getGuildSettings } from '../services/database.js';
 
 export const data = new SlashCommandBuilder()
   .setName('resetallstrikes')
@@ -40,7 +40,8 @@ export async function execute(interaction) {
     });
 
     if (confirmation.customId === 'confirm_reset_all') {
-      const changed = resetAllStrikes();
+      const settings = getGuildSettings(interaction.guildId);
+      const changed = resetAllStrikes(settings.clan_tag);
       await confirmation.update({
         content: `✅ **Erfolgreich!** Alle Verwarnungen und verpassten Decks in der Datenbank wurden zurückgesetzt (${changed} Spieler bereinigt).`,
         components: []

@@ -57,10 +57,16 @@ function initSchema(database) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      migration_name TEXT PRIMARY KEY,
+      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_player_strikes_total ON player_strikes(total_missed_decks);
     CREATE INDEX IF NOT EXISTS idx_player_strikes_clan ON player_strikes(clan_tag);
     CREATE INDEX IF NOT EXISTS idx_war_history_date ON war_history(war_date);
     CREATE INDEX IF NOT EXISTS idx_war_history_clan ON war_history(clan_tag);
+    CREATE INDEX IF NOT EXISTS idx_war_history_lookup ON war_history(clan_tag, war_date, player_tag);
   `);
 
   // Migrationen für bestehende Datenbanken
@@ -74,6 +80,44 @@ function initSchema(database) {
     database.exec("ALTER TABLE guild_settings ADD COLUMN allowed_role_id TEXT;");
   } catch {
     // Spalte existiert bereits
+  }
+
+  // Einmalige Migration: Doppelt gezählte Strafpunkte (durch Multi-Server-Report) rückwirkend halbieren
+  try {
+    const migration = database.prepare(
+      "SELECT 1 FROM schema_migrations WHERE migration_name = 'fix_halve_double_strikes'"
+    ).get();
+
+    if (!migration) {
+      console.log('[Migration] Führe einmalige Migration aus: Halbiere doppelt gezählte Strafpunkte...');
+      database.exec('BEGIN TRANSACTION;');
+      try {
+        database.exec(`
+          UPDATE player_strikes
+          SET total_missed_decks = CAST(ROUND(total_missed_decks / 2.0) AS INTEGER),
+              last_missed_decks = CAST(ROUND(last_missed_decks / 2.0) AS INTEGER),
+              updated_at = CURRENT_TIMESTAMP
+          WHERE total_missed_decks > 0;
+
+          -- Duplikate in war_history bereinigen (nur den ersten Eintrag pro Clan, Datum & Spieler behalten)
+          DELETE FROM war_history
+          WHERE id NOT IN (
+            SELECT MIN(id)
+            FROM war_history
+            GROUP BY clan_tag, war_date, player_tag
+          );
+
+          INSERT INTO schema_migrations (migration_name) VALUES ('fix_halve_double_strikes');
+        `);
+        database.exec('COMMIT;');
+        console.log('[Migration] Strafpunkte erfolgreich halbiert und war_history bereinigt.');
+      } catch (mErr) {
+        database.exec('ROLLBACK;');
+        console.error('[Migration] Fehler bei der Migration fix_halve_double_strikes:', mErr.message);
+      }
+    }
+  } catch (err) {
+    console.error('[Migration] Fehler beim Prüfen der Migrationen:', err.message);
   }
 }
 
@@ -156,6 +200,18 @@ export function getAllGuildSettings() {
 export function recordMissedDecks(guildId, clanTag, dateStr, playerTag, playerName, missedCount) {
   const database = getDatabase();
 
+  // Prüfen, ob für diesen Spieler, Clan und dieses Datum bereits ein Eintrag existiert (Multi-Server-Schutz)
+  const alreadyRecorded = database.prepare(`
+    SELECT 1 FROM war_history
+    WHERE clan_tag = ? AND war_date = ? AND player_tag = ?
+    LIMIT 1
+  `).get(clanTag, dateStr, playerTag);
+
+  if (alreadyRecorded) {
+    console.log(`[Strikes] Für Spieler ${playerName} (${playerTag}) am ${dateStr} wurden bereits Fehlangriffe erfasst. Überspringe.`);
+    return { alreadyRecorded: true };
+  }
+
   database.exec('BEGIN TRANSACTION;');
   try {
     // 1. In player_strikes aktualisieren
@@ -180,6 +236,7 @@ export function recordMissedDecks(guildId, clanTag, dateStr, playerTag, playerNa
     historyStmt.run(guildId, clanTag, dateStr, playerTag, playerName, missedCount);
 
     database.exec('COMMIT;');
+    return { alreadyRecorded: false, recorded: true };
   } catch (error) {
     database.exec('ROLLBACK;');
     throw error;
@@ -187,13 +244,19 @@ export function recordMissedDecks(guildId, clanTag, dateStr, playerTag, playerNa
 }
 
 /**
- * Speichert verpasste Decks mehrerer Spieler in einer einzigen atomaren Transaktion
- * (Vermeidet N+1 Transaktionen und wiederholtes Statement-Parsing).
+ * Speichert verpasste Decks mehrerer Spieler in einer einzigen atomaren Transaktion.
+ * Verhindert durch Idempotenz-Prüfung doppelte Zählungen, wenn der Bot auf mehreren Servern läuft.
  */
 export function recordMissedDecksBatch(guildId, clanTag, dateStr, playerList = []) {
-  if (!playerList || playerList.length === 0) return;
+  if (!playerList || playerList.length === 0) return { insertedCount: 0, skippedCount: 0 };
 
   const database = getDatabase();
+  const checkStmt = database.prepare(`
+    SELECT 1 FROM war_history
+    WHERE clan_tag = ? AND war_date = ? AND player_tag = ?
+    LIMIT 1
+  `);
+
   const upsertStmt = database.prepare(`
     INSERT INTO player_strikes (player_tag, player_name, clan_tag, total_missed_decks, last_missed_decks, last_missed_date, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -211,17 +274,34 @@ export function recordMissedDecksBatch(guildId, clanTag, dateStr, playerList = [
     VALUES (?, ?, ?, ?, ?, ?)
   `);
 
+  let insertedCount = 0;
+  let skippedCount = 0;
+
   database.exec('BEGIN TRANSACTION;');
   try {
     for (const player of playerList) {
+      // Idempotenz-Prüfung: Wurde dieser Spieler für diesen Clan an diesem Datum bereits erfasst?
+      const alreadyRecorded = checkStmt.get(clanTag, dateStr, player.tag);
+      if (alreadyRecorded) {
+        skippedCount++;
+        continue;
+      }
+
       upsertStmt.run(player.tag, player.name, clanTag, player.missedDecks, player.missedDecks, dateStr);
       historyStmt.run(guildId, clanTag, dateStr, player.tag, player.name, player.missedDecks);
+      insertedCount++;
     }
     database.exec('COMMIT;');
   } catch (error) {
     database.exec('ROLLBACK;');
     throw error;
   }
+
+  if (skippedCount > 0) {
+    console.log(`[Strikes] Clan ${clanTag} (${dateStr}): ${insertedCount} neu erfasst, ${skippedCount} Duplikat(e) übersprungen (Multi-Server-Schutz).`);
+  }
+
+  return { insertedCount, skippedCount };
 }
 
 export function getPlayerStrikes(playerTag) {
@@ -229,22 +309,52 @@ export function getPlayerStrikes(playerTag) {
   return database.prepare('SELECT * FROM player_strikes WHERE player_tag = ?').get(playerTag);
 }
 
-export function getAllStrikes(minMissed = 1) {
+export function getAllStrikes(clanTag = null, minMissed = 1) {
+  let tag = clanTag;
+  let min = minMissed;
+  if (typeof clanTag === 'number') {
+    min = clanTag;
+    tag = null;
+  }
+
   const database = getDatabase();
+  if (tag) {
+    return database.prepare(`
+      SELECT * FROM player_strikes
+      WHERE (clan_tag = ? OR clan_tag IS NULL) AND total_missed_decks >= ?
+      ORDER BY total_missed_decks DESC, updated_at DESC
+    `).all(tag, min);
+  }
+
   return database.prepare(`
     SELECT * FROM player_strikes
     WHERE total_missed_decks >= ?
     ORDER BY total_missed_decks DESC, updated_at DESC
-  `).all(minMissed);
+  `).all(min);
 }
 
-export function getKickCandidates(threshold = 5) {
+export function getKickCandidates(clanTag = null, threshold = 5) {
+  let tag = clanTag;
+  let thresh = threshold;
+  if (typeof clanTag === 'number') {
+    thresh = clanTag;
+    tag = null;
+  }
+
   const database = getDatabase();
+  if (tag) {
+    return database.prepare(`
+      SELECT * FROM player_strikes
+      WHERE (clan_tag = ? OR clan_tag IS NULL) AND total_missed_decks >= ?
+      ORDER BY total_missed_decks DESC, player_name ASC
+    `).all(tag, thresh);
+  }
+
   return database.prepare(`
     SELECT * FROM player_strikes
     WHERE total_missed_decks >= ?
     ORDER BY total_missed_decks DESC, player_name ASC
-  `).all(threshold);
+  `).all(thresh);
 }
 
 export function resetPlayerStrikes(playerTag) {
@@ -258,8 +368,17 @@ export function resetPlayerStrikes(playerTag) {
   return (info?.changes || 0) > 0;
 }
 
-export function resetAllStrikes() {
+export function resetAllStrikes(clanTag = null) {
   const database = getDatabase();
+  if (clanTag) {
+    const info = database.prepare(`
+      UPDATE player_strikes
+      SET total_missed_decks = 0, last_missed_decks = 0, updated_at = CURRENT_TIMESTAMP
+      WHERE clan_tag = ? OR clan_tag IS NULL
+    `).run(clanTag);
+    return (info?.changes || 0) > 0;
+  }
+
   const info = database.prepare(`
     UPDATE player_strikes
     SET total_missed_decks = 0, last_missed_decks = 0, updated_at = CURRENT_TIMESTAMP

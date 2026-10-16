@@ -163,7 +163,7 @@ export async function executeWarReport(client, guildId, options = {}) {
   });
 
   // Kick-Kandidaten aus der SQLite-Datenbank ermitteln (Threshold >= 5)
-  const kickCandidates = getKickCandidates(5);
+  const kickCandidates = getKickCandidates(warData.clanTag, 5);
 
   const embed = createWarReportEmbed({
     clanName: warData.clanName,

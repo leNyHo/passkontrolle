@@ -20,7 +20,7 @@ export async function execute(interaction) {
       prunedCount = syncResult?.prunedCount || 0;
     }
 
-    const list = getAllStrikes(1); // Ab 1 verpassten Deck
+    const list = getAllStrikes(settings.clan_tag, 1); // Ab 1 verpassten Deck für den konfigurierten Clan
     const embed = createStrikesEmbed({ strikesList: list, threshold: 5, prunedCount });
 
     await interaction.editReply({ embeds: [embed] });
