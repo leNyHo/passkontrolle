@@ -4,14 +4,21 @@ import {
   recordMissedDecksBatch,
   getKickCandidates,
   getPlayerStrikes,
-  pruneStrikesNotInMemberList
+  pruneStrikesNotInMemberList,
+  getTimeCheckReminderByGuildAndDate,
+  saveTimeCheckReminder
 } from './database.js';
 import { getWarParticipation, getClanInfo, normalizeClanTag } from './clashRoyale.js';
-import { createWarReportEmbed } from '../utils/embeds.js';
+import { createWarReportEmbed, createTimeCheckReminderEmbed } from '../utils/embeds.js';
 import { config } from '../config.js';
 
 export function getTodayDateString(timezone = 'Europe/Berlin') {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: timezone }).format(new Date()); // Format: YYYY-MM-DD
+}
+
+export function isMondayInTimezone(timezone = 'Europe/Berlin', date = new Date()) {
+  const weekday = new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'short' }).format(date);
+  return weekday === 'Mon';
 }
 
 export function getFormattedDateTime(timezone = 'Europe/Berlin') {
@@ -179,11 +186,83 @@ export async function executeWarReport(client, guildId, options = {}) {
 
   await targetChannel.send({ embeds: [embed] });
 
+  // Montags-Erinnerung zur Clankriegs-Zeitüberprüfung (falls konfiguriert)
+  let timeReminderResult = null;
+  try {
+    timeReminderResult = await triggerMondayTimeCheckReminder(
+      client,
+      guildId,
+      targetChannel,
+      settings,
+      todayDateStr,
+      options
+    );
+  } catch (remErr) {
+    console.error(`[Reminder] Fehler beim Senden der Montags-Erinnerung für Server ${guildId}:`, remErr);
+  }
+
   return {
     success: true,
     channelId,
     incompleteCount: warData.incomplete.length,
     kickCandidateCount: kickCandidates.length,
-    embed
+    embed,
+    timeReminderResult
   };
+}
+
+/**
+ * Sendet die Montags-Erinnerung zur Zeitüberprüfung an die hinterlegte Rolle
+ */
+export async function triggerMondayTimeCheckReminder(client, guildId, targetChannel, settings, todayDateStr, options = {}) {
+  const { isTest = false, forceReminder = false } = options;
+
+  if (isTest && !forceReminder) {
+    return { skipped: true, reason: 'Test run' };
+  }
+
+  if (!forceReminder && !isMondayInTimezone(settings.timezone)) {
+    return { skipped: true, reason: 'Not Monday' };
+  }
+
+  if (!settings.reminder_role_id) {
+    console.log(`[Reminder] Server ${guildId} hat keine reminder_role_id konfiguriert. Überspringe Montags-Erinnerung.`);
+    return { skipped: true, reason: 'No reminder_role_id configured' };
+  }
+
+  // Multi-Run / Idempotenz-Schutz: Prüfen, ob für heute bereits eine Erinnerung existiert
+  const existingReminder = getTimeCheckReminderByGuildAndDate(guildId, todayDateStr);
+  if (existingReminder) {
+    console.log(`[Reminder] Für Server ${guildId} wurde am ${todayDateStr} bereits eine Zeitüberprüfungs-Erinnerung erfasst. Überspringe.`);
+    return { skipped: true, reason: 'Already reminded for this date' };
+  }
+
+  const embed = createTimeCheckReminderEmbed({
+    roleId: settings.reminder_role_id,
+    warEndTime: settings.war_end_time,
+    timezone: settings.timezone,
+    isRepeat: false
+  });
+
+  const reminderMsg = await targetChannel.send({
+    content: `<@&${settings.reminder_role_id}>`,
+    embeds: [embed]
+  });
+
+  await reminderMsg.react('✅').catch((err) => {
+    console.warn(`[Reminder] Konnte ✅ Reaktion auf Nachricht ${reminderMsg.id} nicht setzen:`, err.message);
+  });
+
+  const savedReminder = saveTimeCheckReminder({
+    guild_id: guildId,
+    channel_id: targetChannel.id,
+    role_id: settings.reminder_role_id,
+    message_id: reminderMsg.id,
+    war_date: todayDateStr,
+    next_remind_at: Date.now() + 24 * 60 * 60 * 1000,
+    repeat_count: 0
+  });
+
+  console.log(`[Reminder] Montags-Erinnerung an Rolle ${settings.reminder_role_id} gesendet (Msg ID: ${reminderMsg.id}).`);
+  return { success: true, reminder: savedReminder, messageId: reminderMsg.id };
 }

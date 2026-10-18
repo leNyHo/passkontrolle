@@ -26,13 +26,26 @@ const {
   resetPlayerStrikes,
   resetAllStrikes,
   pruneStrikesNotInMemberList,
+  saveTimeCheckReminder,
+  getPendingTimeCheckReminders,
+  getTimeCheckReminderByMessage,
+  getTimeCheckReminderByGuildAndDate,
+  acknowledgeTimeCheckReminder,
+  updateTimeCheckReminderMessage,
   closeDatabase
 } = await import('../src/services/database.js');
 
 const { normalizeClanTag, encodeClanTag } = await import('../src/services/clashRoyale.js');
-const { timeToCronExpression } = await import('../src/services/scheduler.js');
-const { createWarReportEmbed, createStatusEmbed, createStrikesEmbed } = await import('../src/utils/embeds.js');
+const { timeToCronExpression, checkPendingTimeReminders } = await import('../src/services/scheduler.js');
+const { isMondayInTimezone } = await import('../src/services/reportService.js');
+const {
+  createWarReportEmbed,
+  createStatusEmbed,
+  createStrikesEmbed,
+  createTimeCheckReminderEmbed
+} = await import('../src/utils/embeds.js');
 const erlauberolle = await import('../src/commands/erlauberolle.js');
+const setreminder = await import('../src/commands/setreminder.js');
 
 // Test 1: Clan Tag Normalisierung
 console.log('▶ Test 1: Clan-Tag Normalisierung & URL-Encoding');
@@ -47,6 +60,9 @@ assert.equal(timeToCronExpression('12:00'), '0 12 * * *');
 assert.equal(timeToCronExpression('09:45'), '45 9 * * *');
 assert.equal(timeToCronExpression('18:05'), '5 18 * * *');
 assert.ok(erlauberolle.data.name === 'erlauberolle');
+assert.ok(setreminder.data.name === 'setreminder');
+assert.ok(setreminder.data.options.some((o) => o.name === 'rolle'));
+assert.ok(setreminder.data.options.some((o) => o.name === 'deaktivieren'));
 console.log('  ✔ Cron-Konverter & Command-Export Tests erfolgreich!\n');
 
 // Test 3: Datenbank-Operationen
@@ -57,13 +73,15 @@ assert.equal(initialSettings.war_end_time, '12:00');
 assert.equal(initialSettings.clan_tag, null);
 assert.equal(initialSettings.reminder_message, 'Folgende Spieler haben noch Decks offen:');
 assert.equal(initialSettings.allowed_role_id, null);
+assert.equal(initialSettings.reminder_role_id, null);
 
 saveGuildSettings(guildId, {
   clan_tag: '#2PP',
   channel_id: '987654321098765432',
   war_end_time: '11:30',
   reminder_message: 'Kriegs-Erinnerung:',
-  allowed_role_id: '111222333444555666'
+  allowed_role_id: '111222333444555666',
+  reminder_role_id: '999888777666555444'
 });
 
 const updatedSettings = getGuildSettings(guildId);
@@ -72,6 +90,7 @@ assert.equal(updatedSettings.channel_id, '987654321098765432');
 assert.equal(updatedSettings.war_end_time, '11:30');
 assert.equal(updatedSettings.reminder_message, 'Kriegs-Erinnerung:');
 assert.equal(updatedSettings.allowed_role_id, '111222333444555666');
+assert.equal(updatedSettings.reminder_role_id, '999888777666555444');
 console.log('  ✔ Guild-Settings erfolgreich gespeichert und geladen!\n');
 
 // Test 4: Strikes & Kick-Vorschläge (5+ Regel) & Reset All
@@ -184,6 +203,125 @@ assert.ok(statusEmbed.data.title.includes('Aktueller Clankriegs-Status'));
 assert.ok(!JSON.stringify(statusEmbed.data).includes('Fortsetzung'));
 
 console.log('  ✔ Embeds fehlerfrei gerendert!\n');
+
+// Test 6: Montags-Erinnerung zur Clankriegs-Zeitüberprüfung (/setreminder & 24h-Wiederholung)
+console.log('▶ Test 6: Montags-Erinnerung zur Clankriegs-Zeitüberprüfung & 24h-Wiederholung');
+
+// 6a. Wochentag-Erkennung (Montag)
+const mondayDate = new Date('2026-10-19T10:00:00Z'); // 19. Okt 2026 ist Montag
+const tuesdayDate = new Date('2026-10-20T10:00:00Z'); // 20. Okt 2026 ist Dienstag
+assert.equal(isMondayInTimezone('Europe/Berlin', mondayDate), true);
+assert.equal(isMondayInTimezone('Europe/Berlin', tuesdayDate), false);
+
+// 6b. Reminder-Embeds
+const initialReminderEmbed = createTimeCheckReminderEmbed({
+  roleId: '999888777666555444',
+  warEndTime: '12:00',
+  timezone: 'Europe/Berlin',
+  isRepeat: false
+});
+assert.ok(initialReminderEmbed.data.title.includes('Zeitüberprüfung erforderlich'));
+assert.ok(initialReminderEmbed.data.description.includes('12:00 Uhr'));
+
+const repeatReminderEmbed = createTimeCheckReminderEmbed({
+  roleId: '999888777666555444',
+  warEndTime: '12:00',
+  timezone: 'Europe/Berlin',
+  isRepeat: true
+});
+assert.ok(repeatReminderEmbed.data.title.includes('Erinnerung: Clankriegs-Uhrzeit überprüfen'));
+assert.ok(repeatReminderEmbed.data.description.includes('erneute Erinnerung'));
+
+// 6c. Datenbank-Operationen für time_check_reminders
+const testGuildId = 'guild-remind-test';
+const savedRem = saveTimeCheckReminder({
+  guild_id: testGuildId,
+  channel_id: 'channel-test-1',
+  role_id: 'role-test-1',
+  message_id: 'msg-test-100',
+  war_date: '2026-10-19',
+  next_remind_at: Date.now() - 5000, // Bereits fällig
+  repeat_count: 0
+});
+assert.ok(savedRem.id > 0);
+
+const fetchedByMsg = getTimeCheckReminderByMessage('msg-test-100');
+assert.equal(fetchedByMsg.guild_id, testGuildId);
+assert.equal(fetchedByMsg.acknowledged, 0);
+
+const fetchedByGuild = getTimeCheckReminderByGuildAndDate(testGuildId, '2026-10-19');
+assert.equal(fetchedByGuild.message_id, 'msg-test-100');
+
+let pendingList = getPendingTimeCheckReminders(Date.now());
+assert.ok(pendingList.some((r) => r.id === savedRem.id));
+
+// Bestätigung per Häkchen testen
+const ackResult = acknowledgeTimeCheckReminder('msg-test-100', 'user-mod-1');
+assert.equal(ackResult, true);
+
+const afterAck = getTimeCheckReminderByMessage('msg-test-100');
+assert.equal(afterAck.acknowledged, 1);
+assert.equal(afterAck.acknowledged_by, 'user-mod-1');
+
+pendingList = getPendingTimeCheckReminders(Date.now());
+assert.ok(!pendingList.some((r) => r.id === savedRem.id));
+
+// 6d. Scheduler 24h-Wiederholungsprüfung mit Mock-Discord-Client
+// Erstelle eine neue fällige Erinnerung (unbestätigt)
+const unackRem = saveTimeCheckReminder({
+  guild_id: testGuildId,
+  channel_id: 'channel-test-2',
+  role_id: 'role-test-2',
+  message_id: 'msg-test-200',
+  war_date: '2026-10-19',
+  next_remind_at: Date.now() - 5000,
+  repeat_count: 0
+});
+
+let mockSentPayload = null;
+let mockReactionAdded = null;
+const mockChannel = {
+  id: 'channel-test-2',
+  send: async (payload) => {
+    mockSentPayload = payload;
+    return {
+      id: 'msg-repeat-300',
+      react: async (emoji) => {
+        mockReactionAdded = emoji;
+      }
+    };
+  },
+  messages: {
+    fetch: async () => ({
+      id: 'msg-test-200',
+      reactions: {
+        cache: {
+          get: (emoji) => null // Noch keine ✅ Reaktion!
+        }
+      }
+    })
+  }
+};
+
+const mockClient = {
+  channels: {
+    fetch: async (id) => (id === 'channel-test-2' ? mockChannel : null)
+  }
+};
+
+// Scheduler-Prüfung ausführen
+const checkResults = await checkPendingTimeReminders(mockClient, Date.now());
+assert.ok(checkResults.some((r) => r.id === unackRem.id && r.action === 'repeated'));
+assert.equal(mockReactionAdded, '✅');
+assert.ok(mockSentPayload.content.includes('role-test-2'));
+
+// Überprüfe aktualisierten DB-Eintrag
+const updatedRem = getTimeCheckReminderByMessage('msg-repeat-300');
+assert.ok(updatedRem);
+assert.equal(updatedRem.repeat_count, 1);
+assert.ok(updatedRem.next_remind_at > Date.now());
+
+console.log('  ✔ Montags-Erinnerung & 24h-Wiederholung erfolgreich validiert!\n');
 
 // Aufräumen
 closeDatabase();

@@ -31,6 +31,7 @@ function initSchema(database) {
       warning_message TEXT,
       reminder_message TEXT DEFAULT 'Folgende Spieler haben noch Decks offen:',
       allowed_role_id TEXT,
+      reminder_role_id TEXT,
       timezone TEXT DEFAULT 'Europe/Berlin',
       last_report_date TEXT,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -57,6 +58,22 @@ function initSchema(database) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS time_check_reminders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      role_id TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      war_date TEXT NOT NULL,
+      next_remind_at INTEGER NOT NULL,
+      repeat_count INTEGER DEFAULT 0,
+      acknowledged INTEGER DEFAULT 0,
+      acknowledged_by TEXT,
+      acknowledged_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS schema_migrations (
       migration_name TEXT PRIMARY KEY,
       applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -67,6 +84,9 @@ function initSchema(database) {
     CREATE INDEX IF NOT EXISTS idx_war_history_date ON war_history(war_date);
     CREATE INDEX IF NOT EXISTS idx_war_history_clan ON war_history(clan_tag);
     CREATE INDEX IF NOT EXISTS idx_war_history_lookup ON war_history(clan_tag, war_date, player_tag);
+    CREATE INDEX IF NOT EXISTS idx_time_reminders_pending ON time_check_reminders(acknowledged, next_remind_at);
+    CREATE INDEX IF NOT EXISTS idx_time_reminders_message ON time_check_reminders(message_id);
+    CREATE INDEX IF NOT EXISTS idx_time_reminders_guild_date ON time_check_reminders(guild_id, war_date);
   `);
 
   // Migrationen für bestehende Datenbanken
@@ -78,6 +98,12 @@ function initSchema(database) {
 
   try {
     database.exec("ALTER TABLE guild_settings ADD COLUMN allowed_role_id TEXT;");
+  } catch {
+    // Spalte existiert bereits
+  }
+
+  try {
+    database.exec("ALTER TABLE guild_settings ADD COLUMN reminder_role_id TEXT;");
   } catch {
     // Spalte existiert bereits
   }
@@ -138,6 +164,7 @@ export function getGuildSettings(guildId) {
       warning_message: config.defaultWarningMessage,
       reminder_message: config.defaultReminderMessage,
       allowed_role_id: null,
+      reminder_role_id: null,
       timezone: config.timezone,
       last_report_date: null
     };
@@ -149,6 +176,7 @@ export function getGuildSettings(guildId) {
     warning_message: row.warning_message || config.defaultWarningMessage,
     reminder_message: row.reminder_message || config.defaultReminderMessage,
     allowed_role_id: row.allowed_role_id || null,
+    reminder_role_id: row.reminder_role_id || null,
     timezone: row.timezone || config.timezone
   };
 }
@@ -159,8 +187,8 @@ export function saveGuildSettings(guildId, updates = {}) {
 
   const database = getDatabase();
   const stmt = database.prepare(`
-    INSERT INTO guild_settings (guild_id, clan_tag, channel_id, war_end_time, warning_message, reminder_message, allowed_role_id, timezone, last_report_date, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO guild_settings (guild_id, clan_tag, channel_id, war_end_time, warning_message, reminder_message, allowed_role_id, reminder_role_id, timezone, last_report_date, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(guild_id) DO UPDATE SET
       clan_tag = excluded.clan_tag,
       channel_id = excluded.channel_id,
@@ -168,6 +196,7 @@ export function saveGuildSettings(guildId, updates = {}) {
       warning_message = excluded.warning_message,
       reminder_message = excluded.reminder_message,
       allowed_role_id = excluded.allowed_role_id,
+      reminder_role_id = excluded.reminder_role_id,
       timezone = excluded.timezone,
       last_report_date = excluded.last_report_date,
       updated_at = CURRENT_TIMESTAMP
@@ -181,6 +210,7 @@ export function saveGuildSettings(guildId, updates = {}) {
     updated.warning_message,
     updated.reminder_message,
     updated.allowed_role_id,
+    updated.reminder_role_id,
     updated.timezone,
     updated.last_report_date
   );
@@ -436,6 +466,138 @@ export function pruneStrikesNotInMemberList(currentMemberTags, clanTag = null) {
     toDelete.map((p) => `${p.player_name} (${p.player_tag})`).join(', ')
   );
   return toDelete;
+}
+
+// ==========================================
+// Clankrieg-Zeitüberprüfung Reminder Abfragen
+// ==========================================
+
+/**
+ * Speichert eine neue Erinnerung zur Zeitüberprüfung
+ */
+export function saveTimeCheckReminder({
+  guild_id,
+  channel_id,
+  role_id,
+  message_id,
+  war_date,
+  next_remind_at,
+  repeat_count = 0
+}) {
+  const database = getDatabase();
+  const stmt = database.prepare(`
+    INSERT INTO time_check_reminders (
+      guild_id, channel_id, role_id, message_id, war_date, next_remind_at, repeat_count, acknowledged, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+  `);
+
+  const info = stmt.run(
+    guild_id,
+    channel_id,
+    role_id,
+    message_id,
+    war_date,
+    next_remind_at,
+    repeat_count
+  );
+
+  return {
+    id: info.lastInsertRowid,
+    guild_id,
+    channel_id,
+    role_id,
+    message_id,
+    war_date,
+    next_remind_at,
+    repeat_count,
+    acknowledged: 0
+  };
+}
+
+/**
+ * Gibt alle fälligen, noch nicht bestätigten Erinnerungen zurück
+ */
+export function getPendingTimeCheckReminders(nowTimestamp = Date.now()) {
+  const database = getDatabase();
+  return database.prepare(`
+    SELECT * FROM time_check_reminders
+    WHERE acknowledged = 0 AND next_remind_at <= ?
+    ORDER BY next_remind_at ASC
+  `).all(nowTimestamp);
+}
+
+/**
+ * Holt eine Erinnerung anhand der Discord-Nachrichten-ID
+ */
+export function getTimeCheckReminderByMessage(messageId) {
+  const database = getDatabase();
+  return database.prepare(`
+    SELECT * FROM time_check_reminders
+    WHERE message_id = ?
+    LIMIT 1
+  `).get(messageId);
+}
+
+/**
+ * Holt eine Erinnerung anhand der ID
+ */
+export function getTimeCheckReminder(id) {
+  const database = getDatabase();
+  return database.prepare(`
+    SELECT * FROM time_check_reminders
+    WHERE id = ?
+    LIMIT 1
+  `).get(id);
+}
+
+/**
+ * Prüft, ob für eine Guild und ein Kriegsdatum bereits eine Erinnerung existiert
+ */
+export function getTimeCheckReminderByGuildAndDate(guildId, warDate) {
+  const database = getDatabase();
+  return database.prepare(`
+    SELECT * FROM time_check_reminders
+    WHERE guild_id = ? AND war_date = ?
+    ORDER BY id DESC
+    LIMIT 1
+  `).get(guildId, warDate);
+}
+
+/**
+ * Markiert eine Erinnerung als bestätigt (per Häkchen)
+ */
+export function acknowledgeTimeCheckReminder(idOrMessageId, userId = null) {
+  const database = getDatabase();
+  const stmt = database.prepare(`
+    UPDATE time_check_reminders
+    SET acknowledged = 1,
+        acknowledged_by = ?,
+        acknowledged_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ? OR message_id = ?
+  `);
+
+  const info = stmt.run(userId, idOrMessageId, idOrMessageId);
+  return (info?.changes || 0) > 0;
+}
+
+/**
+ * Aktualisiert die Nachrichten-ID und das nächste Erinnerungsdatum nach einer Wiederholung
+ */
+export function updateTimeCheckReminderMessage(id, newMessageId, nextRemindAt, repeatCount) {
+  const database = getDatabase();
+  const stmt = database.prepare(`
+    UPDATE time_check_reminders
+    SET message_id = ?,
+        next_remind_at = ?,
+        repeat_count = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `);
+
+  const info = stmt.run(newMessageId, nextRemindAt, repeatCount, id);
+  return (info?.changes || 0) > 0;
 }
 
 export function closeDatabase() {

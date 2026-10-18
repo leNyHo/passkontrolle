@@ -1,6 +1,13 @@
 import cron from 'node-cron';
-import { getAllGuildSettings, getGuildSettings } from './database.js';
+import {
+  getAllGuildSettings,
+  getGuildSettings,
+  getPendingTimeCheckReminders,
+  acknowledgeTimeCheckReminder,
+  updateTimeCheckReminderMessage
+} from './database.js';
 import { executeWarReport } from './reportService.js';
+import { createTimeCheckReminderEmbed } from '../utils/embeds.js';
 import { config } from '../config.js';
 
 // Map: guildId -> cron.ScheduledTask
@@ -66,6 +73,88 @@ export function scheduleGuildWarEnd(client, guildId, timeStr, timezone = config.
 }
 
 /**
+ * Überprüft ausstehende Zeitüberprüfungs-Erinnerungen.
+ * - Wurde mit ✅ reagiert: Als bestätigt markieren.
+ * - Nach 24h noch nicht bestätigt: Erneut an die Rolle senden.
+ */
+export async function checkPendingTimeReminders(client, now = Date.now()) {
+  const pending = getPendingTimeCheckReminders(now);
+  if (!pending || pending.length === 0) return [];
+
+  console.log(`[Reminder-Check] Prüfe ${pending.length} ausstehende Zeitüberprüfungs-Erinnerungen...`);
+  const processed = [];
+
+  for (const reminder of pending) {
+    try {
+      const channel = await client.channels.fetch(reminder.channel_id).catch(() => null);
+      if (!channel) {
+        console.warn(`[Reminder-Check] Kanal ${reminder.channel_id} für Erinnerung #${reminder.id} nicht gefunden.`);
+        continue;
+      }
+
+      // Versuche die bisherige Nachricht abzurufen
+      let message = null;
+      try {
+        message = await channel.messages.fetch(reminder.message_id);
+      } catch (mErr) {
+        console.warn(`[Reminder-Check] Nachricht ${reminder.message_id} konnte nicht abgerufen werden:`, mErr.message);
+      }
+
+      // Prüfen, ob bereits mit ✅ reagiert wurde
+      let acknowledgedBy = null;
+      if (message) {
+        const checkReaction = message.reactions?.cache?.get('✅');
+        if (checkReaction) {
+          const users = await checkReaction.users.fetch().catch(() => null);
+          if (users) {
+            const humanUser = users.find((u) => !u.bot);
+            if (humanUser) {
+              acknowledgedBy = humanUser.id;
+            }
+          }
+        }
+      }
+
+      if (acknowledgedBy) {
+        acknowledgeTimeCheckReminder(reminder.id, acknowledgedBy);
+        console.log(`[Reminder-Check] Erinnerung #${reminder.id} wurde nachträglich durch User ${acknowledgedBy} mit ✅ bestätigt.`);
+        processed.push({ id: reminder.id, action: 'acknowledged', userId: acknowledgedBy });
+        continue;
+      }
+
+      // Noch nicht bestätigt und 24h sind vergangen: Erneuten Reminder senden!
+      const settings = getGuildSettings(reminder.guild_id);
+      const repeatEmbed = createTimeCheckReminderEmbed({
+        roleId: reminder.role_id,
+        warEndTime: settings.war_end_time,
+        timezone: settings.timezone,
+        isRepeat: true
+      });
+
+      const newMsg = await channel.send({
+        content: `<@&${reminder.role_id}>`,
+        embeds: [repeatEmbed]
+      });
+
+      await newMsg.react('✅').catch((rErr) => {
+        console.warn(`[Reminder-Check] Konnte ✅ auf Nachricht ${newMsg.id} nicht setzen:`, rErr.message);
+      });
+
+      const nextRemindAt = Date.now() + 24 * 60 * 60 * 1000;
+      const newRepeatCount = (reminder.repeat_count || 0) + 1;
+      updateTimeCheckReminderMessage(reminder.id, newMsg.id, nextRemindAt, newRepeatCount);
+
+      console.log(`[Reminder-Check] Erinnerung #${reminder.id} nach 24h wiederholt gesendet (Neue Msg ID: ${newMsg.id}, Wiederholung #${newRepeatCount}).`);
+      processed.push({ id: reminder.id, action: 'repeated', newMessageId: newMsg.id, repeatCount: newRepeatCount });
+    } catch (err) {
+      console.error(`[Reminder-Check] Fehler bei Erinnerung #${reminder.id}:`, err);
+    }
+  }
+
+  return processed;
+}
+
+/**
  * Initialisiert alle Scheduler beim Bot-Start für alle bekannten Server
  */
 export function initScheduler(client) {
@@ -85,6 +174,16 @@ export function initScheduler(client) {
       scheduleGuildWarEnd(client, guild.id, config.defaultWarEndTime, config.timezone);
     }
   }
+
+  // Regelmäßige Prüfung für ausstehende 24h-Erinnerungen (alle 10 Minuten)
+  const reminderCheckJob = cron.schedule('*/10 * * * *', async () => {
+    try {
+      await checkPendingTimeReminders(client);
+    } catch (checkErr) {
+      console.error('[Scheduler] Fehler bei checkPendingTimeReminders:', checkErr);
+    }
+  });
+  activeJobs.set('__system_reminder_check__', reminderCheckJob);
 
   console.log(`[Scheduler] ${activeJobs.size} Server-Zeitpläne erfolgreich aktiv.`);
 }

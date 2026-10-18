@@ -16,6 +16,7 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
   - `/angriffe` – Live-Kriegsstatus sofort abrufen (welche Decks fehlen heute noch?).
   - `/erinnerung` – Erstellt eine fertige Erinnerungsnachricht (`@Name (offene Decks)`) zum Pingen/Kopieren.
   - `/verwarnungen` – Gesamtübersicht aller Spieler mit verpassten Decks & Kick-Kandidaten (ab 5+ Decks).
+  - `/setreminder [Rolle]` – Legt die Rolle fest, die montags nach dem Clankrieg an die Zeitüberprüfung erinnert wird (Bestätigung per ✅, Wiederholung alle 24h).
   - `/setclan [Clan-Tag]` – Clan festlegen oder wechseln (z. B. `#2PP`).
   - `/setchannel` – Aktuellen Kanal als Ziel für Berichte festlegen.
   - `/settime [HH:MM]` – Kriegsende-Uhrzeit in `Europe/Berlin` anpassen (z. B. `11:30`).

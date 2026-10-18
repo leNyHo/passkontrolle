@@ -3,13 +3,20 @@ import {
   Collection,
   Events,
   GatewayIntentBits,
+  Partials,
   REST,
   Routes,
   ActivityType,
   PermissionFlagsBits
 } from 'discord.js';
 import { config, validateConfig } from './config.js';
-import { getDatabase, closeDatabase, getGuildSettings } from './services/database.js';
+import {
+  getDatabase,
+  closeDatabase,
+  getGuildSettings,
+  getTimeCheckReminderByMessage,
+  acknowledgeTimeCheckReminder
+} from './services/database.js';
 import { initScheduler, stopAllSchedulers, scheduleGuildWarEnd } from './services/scheduler.js';
 
 // Befehle importieren
@@ -21,6 +28,7 @@ import * as setclanCommand from './commands/setclan.js';
 import * as setchannelCommand from './commands/setchannel.js';
 import * as settimeCommand from './commands/settime.js';
 import * as seterinnerungCommand from './commands/seterinnerung.js';
+import * as setreminderCommand from './commands/setreminder.js';
 import * as resetstrikesCommand from './commands/resetstrikes.js';
 import * as resetallstrikesCommand from './commands/resetallstrikes.js';
 import * as helpCommand from './commands/help.js';
@@ -31,9 +39,14 @@ validateConfig();
 // SQLite Datenbank initialisieren
 getDatabase();
 
-// Discord Client erstellen (reiner Slash-Command Bot, minimale Berechtigungen nötig)
+// Discord Client erstellen (mit MessageReaction-Support für Zeitüberprüfungs-Häkchen)
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMessageReactions
+  ],
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 
 client.commands = new Collection();
@@ -46,6 +59,7 @@ const commandList = [
   setchannelCommand,
   settimeCommand,
   seterinnerungCommand,
+  setreminderCommand,
   resetstrikesCommand,
   resetallstrikesCommand,
   helpCommand
@@ -204,6 +218,41 @@ client.on(Events.InteractionCreate, async (interaction) => {
       await interaction.followUp(errorMessage).catch(() => {});
     } else {
       await interaction.reply(errorMessage).catch(() => {});
+    }
+  }
+});
+
+// Event: Reaktion auf Nachricht empfangen (für Zeitüberprüfungs-Häkchen ✅)
+client.on(Events.MessageReactionAdd, async (reaction, user) => {
+  // Eigene Reaktionen des Bots ignorieren
+  if (user.bot) return;
+
+  // Falls unvollständig (Partial), vollständige Nachricht/Reaktion nachladen
+  if (reaction.partial) {
+    try {
+      await reaction.fetch();
+    } catch (err) {
+      console.warn('[Reaction] Konnte Reaktion nicht vollständig abrufen:', err.message);
+      return;
+    }
+  }
+
+  // Prüfen, ob es sich um den grünen Haken ✅ handelt
+  if (reaction.emoji.name !== '✅') return;
+
+  const reminder = getTimeCheckReminderByMessage(reaction.message.id);
+  if (reminder && !reminder.acknowledged) {
+    acknowledgeTimeCheckReminder(reminder.id, user.id);
+    console.log(`[Reminder] Zeitüberprüfung für Server ${reminder.guild_id} von User ${user.tag} (${user.id}) bestätigt!`);
+
+    try {
+      if (reaction.message.channel) {
+        await reaction.message.reply({
+          content: `✅ **Vielen Dank, <@${user.id}>!** Die Clankriegs-Zeit wurde als überprüft markiert. Der Reminder wird für diese Woche nicht mehr wiederholt.`
+        });
+      }
+    } catch (msgErr) {
+      console.warn('[Reminder] Konnte Bestätigungsantwort nicht senden:', msgErr.message);
     }
   }
 });

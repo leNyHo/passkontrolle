@@ -186,3 +186,35 @@ export function createStrikesEmbed({ strikesList = [], threshold = 5, prunedCoun
   embed.setFooter({ text: 'Clash Royale Admin Bot • Verwarnungen-Datenbank' });
   return embed;
 }
+
+/**
+ * Erstellt das Embed für die Montags-Erinnerung zur Überprüfung der Clankriegs-Uhrzeit
+ */
+export function createTimeCheckReminderEmbed({
+  roleId,
+  warEndTime = '12:00',
+  timezone = 'Europe/Berlin',
+  isRepeat = false
+}) {
+  const embed = new EmbedBuilder()
+    .setColor(isRepeat ? COLORS.WARNING_ORANGE : COLORS.INFO_BLUE)
+    .setTitle(
+      isRepeat
+        ? '⚠️ Erinnerung: Clankriegs-Uhrzeit überprüfen!'
+        : '⏰ Clankriegs-Woche beendet: Zeitüberprüfung erforderlich'
+    )
+    .setDescription(
+      `Der Clankrieg für diese Woche ist offiziell beendet!\n\n` +
+      `👉 **Bitte überprüft die Clankriegs-Uhrzeit für die kommende Woche:**\n` +
+      `Aktuell eingestellt: **${warEndTime} Uhr** (${timezone})\n\n` +
+      `• Falls sich die Endzeit ändert, passt sie bitte mit \`/settime [HH:MM]\` an.\n` +
+      `• **Wichtig:** Bitte reagiert mit einem grünen Haken (**✅**) auf diese Nachricht, sobald die Zeit überprüft wurde!\n\n` +
+      (isRepeat
+        ? `⚠️ *Dies ist eine erneute Erinnerung, da nach 24 Stunden noch keine Bestätigung mit ✅ erfolgte.*`
+        : `*Erfolgt innerhalb von 24 Stunden keine Reaktion mit ✅, wird diese Erinnerung automatisch wiederholt.*`)
+    )
+    .setFooter({ text: 'Clash Royale Bot • Clankriegs-Zeitüberprüfung' })
+    .setTimestamp();
+
+  return embed;
+}
