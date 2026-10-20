@@ -1,11 +1,12 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { getGuildSettings } from '../services/database.js';
 import { getWarParticipation } from '../services/clashRoyale.js';
+import { createStatusEmbed } from '../utils/embeds.js';
 import { config } from '../config.js';
 
 export const data = new SlashCommandBuilder()
   .setName('erinnerung')
-  .setDescription('Generiert eine Erinnerungsnachricht mit allen Spielern, die noch Decks offen haben.');
+  .setDescription('Ruft den aktuellen Clankriegs-Status und die kopierbare Erinnerungsnachricht ab.');
 
 export async function execute(interaction) {
   await interaction.deferReply();
@@ -19,38 +20,21 @@ export async function execute(interaction) {
     }
 
     const warData = await getWarParticipation(settings.clan_tag);
+    const reminderPrefix = settings.reminder_message || config.defaultReminderMessage;
 
-    if (warData.incomplete.length === 0) {
-      return await interaction.editReply({
-        content: '🎉 **Alle Spieler haben ihre Angriffe für heute bereits erledigt!**'
-      });
-    }
+    const embed = createStatusEmbed({
+      clanName: warData.clanName,
+      clanTag: warData.clanTag,
+      periodType: warData.periodType,
+      completedCount: warData.completedCount,
+      incompleteCount: warData.incompleteCount,
+      totalMembers: warData.totalMembers,
+      totalMissedToday: warData.totalMissedToday,
+      incompleteList: warData.incomplete,
+      reminderMessage: reminderPrefix
+    });
 
-    const prefix = settings.reminder_message || config.defaultReminderMessage;
-    const playerEntries = warData.incomplete.map(p => `@${p.name} (${p.missedDecks})`);
-    const reminderText = `${prefix} ${playerEntries.join(', ')}`;
-
-    // Discord Limit: 2000 Zeichen
-    if (reminderText.length <= 2000) {
-      await interaction.editReply({ content: reminderText });
-    } else {
-      // Falls es das Zeichenlimit überschreitet, in lesbare Abschnitte aufteilen
-      const chunks = [];
-      let current = `${prefix}\n`;
-      for (const entry of playerEntries) {
-        if (current.length + entry.length + 2 > 1950) {
-          chunks.push(current);
-          current = '';
-        }
-        current += (current ? ', ' : '') + entry;
-      }
-      if (current) chunks.push(current);
-
-      await interaction.editReply({ content: chunks[0] });
-      for (let i = 1; i < chunks.length; i++) {
-        await interaction.followUp({ content: chunks[i] });
-      }
-    }
+    await interaction.editReply({ embeds: [embed] });
   } catch (error) {
     console.error('Fehler bei /erinnerung:', error);
     await interaction.editReply({

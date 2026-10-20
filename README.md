@@ -13,9 +13,10 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
 - **🚨 Automatische Kick-Vorschläge:** Spieler mit **5 oder mehr verpassten Decks** werden im Tagesbericht prominent als Kick-Kandidaten ausgewiesen.
 - **🛠️ Vollständige Admin & Co-Leader Slash-Commands:**
   - `/erlauberolle [Rolle]` – Erlaubt einer Rolle (z. B. `@Co-Leader`) die volle Bot-Nutzung ohne Discord-Admin-Rechte.
-  - `/angriffe` – Live-Kriegsstatus sofort abrufen (welche Decks fehlen heute noch?).
-  - `/erinnerung` – Erstellt eine fertige Erinnerungsnachricht (`@Name (offene Decks)`) zum Pingen/Kopieren.
-  - `/verwarnungen` – Gesamtübersicht aller Spieler mit verpassten Decks & Kick-Kandidaten (ab 5+ Decks).
+  - `/erinnerung` – Live-Kriegsstatus & 1-Klick-Kopiernachricht mit allen offenen Spielern (`@Name (X Decks)`).
+  - `/angriffe` – Live-Kriegsstatus abrufen (Alias für `/erinnerung`).
+  - `/verwarnungen` – Gesamtübersicht aller Spieler mit verpassten Decks, Kick-Kandidaten & fertiger Clan-Nachricht zum Kopieren.
+  - `/testreport` – Erstellt einen realistischen Test-Abschlussbericht mit echten Daten (ohne Verwarnungen zu speichern).
   - `/setreminder [Rolle]` – Legt die Rolle fest, die montags nach dem Clankrieg an die Zeitüberprüfung erinnert wird (Bestätigung per ✅, Wiederholung alle 24h).
   - `/setclan [Clan-Tag]` – Clan festlegen oder wechseln (z. B. `#2PP`).
   - `/setchannel` – Aktuellen Kanal als Ziel für Berichte festlegen.

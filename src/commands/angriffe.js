@@ -2,10 +2,11 @@ import { SlashCommandBuilder } from 'discord.js';
 import { getGuildSettings } from '../services/database.js';
 import { getWarParticipation } from '../services/clashRoyale.js';
 import { createStatusEmbed } from '../utils/embeds.js';
+import { config } from '../config.js';
 
 export const data = new SlashCommandBuilder()
   .setName('angriffe')
-  .setDescription('Ruft den aktuellen Angriffsstatus des laufenden Clankrieges ab.');
+  .setDescription('Ruft den aktuellen Angriffsstatus und die Clankriegs-Erinnerung ab.');
 
 export async function execute(interaction) {
   await interaction.deferReply();
@@ -19,6 +20,8 @@ export async function execute(interaction) {
     }
 
     const warData = await getWarParticipation(settings.clan_tag);
+    const reminderPrefix = settings.reminder_message || config.defaultReminderMessage;
+
     const embed = createStatusEmbed({
       clanName: warData.clanName,
       clanTag: warData.clanTag,
@@ -27,7 +30,8 @@ export async function execute(interaction) {
       incompleteCount: warData.incompleteCount,
       totalMembers: warData.totalMembers,
       totalMissedToday: warData.totalMissedToday,
-      incompleteList: warData.incomplete
+      incompleteList: warData.incomplete,
+      reminderMessage: reminderPrefix
     });
 
     await interaction.editReply({ embeds: [embed] });

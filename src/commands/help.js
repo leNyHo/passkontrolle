@@ -14,9 +14,10 @@ export async function execute(interaction) {
       {
         name: '⚔️ Clankrieg & Status',
         value:
-          '• `/angriffe` – Ruft den aktuellen Angriffsstatus live ab (wer hat heute noch Decks offen?).\n' +
-          '• `/erinnerung` – Erstellt einen fertigen Erinnerungstext mit `@Name (offene Decks)` zum Kopieren/Pingen.\n' +
-          '• `/verwarnungen` – Zeigt die SQLite-Historie aller verpassten Decks & Kick-Kandidaten (ab 5+ Decks).\n' +
+          '• `/erinnerung` – Zeigt den Status & eine 1-Klick-Kopiernachricht mit allen offenen Spielern (`@Name (X Decks)`).\n' +
+          '• `/angriffe` – Live-Abfrage des Clankriegs-Status (wie `/erinnerung`).\n' +
+          '• `/verwarnungen` – Übersicht aller verpassten Decks, Kick-Kandidaten & Copy-Paste Clan-Nachricht.\n' +
+          '• `/testreport` – Erstellt einen realistischen Test-Abschlussbericht (ohne Verwarnungen zu speichern).\n' +
           '• `/resetstrikes [tag]` – Setzt die verpassten Decks eines einzelnen Spielers auf 0 zurück.\n' +
           '• `/resetallstrikes` – Löscht die Verwarnungen **aller** Spieler in der Datenbank (mit Sicherheitsabfrage).',
         inline: false

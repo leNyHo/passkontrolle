@@ -113,7 +113,7 @@ export async function syncClanMembersAndPruneStrikes(clanTag) {
  * @param {object} options - { isTest: boolean, channelOverride: string|null, forceRun: boolean }
  */
 export async function executeWarReport(client, guildId, options = {}) {
-  const { isTest = false, channelOverride = null, forceRun = false } = options;
+  const { isTest = false, channelOverride = null, forceRun = false, skipChannelSend = false } = options;
   const settings = getGuildSettings(guildId);
 
   if (!settings.clan_tag) {
@@ -184,7 +184,9 @@ export async function executeWarReport(client, guildId, options = {}) {
     isTest
   });
 
-  await targetChannel.send({ embeds: [embed] });
+  if (!skipChannelSend) {
+    await targetChannel.send({ embeds: [embed] });
+  }
 
   // Montags-Erinnerung zur Clankriegs-Zeitüberprüfung (falls konfiguriert)
   let timeReminderResult = null;

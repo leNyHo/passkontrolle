@@ -46,6 +46,9 @@ const {
 } = await import('../src/utils/embeds.js');
 const erlauberolle = await import('../src/commands/erlauberolle.js');
 const setreminder = await import('../src/commands/setreminder.js');
+const erinnerung = await import('../src/commands/erinnerung.js');
+const angriffe = await import('../src/commands/angriffe.js');
+const testreport = await import('../src/commands/testreport.js');
 
 // Test 1: Clan Tag Normalisierung
 console.log('▶ Test 1: Clan-Tag Normalisierung & URL-Encoding');
@@ -63,6 +66,9 @@ assert.ok(erlauberolle.data.name === 'erlauberolle');
 assert.ok(setreminder.data.name === 'setreminder');
 assert.ok(setreminder.data.options.some((o) => o.name === 'rolle'));
 assert.ok(setreminder.data.options.some((o) => o.name === 'deaktivieren'));
+assert.ok(erinnerung.data.name === 'erinnerung');
+assert.ok(angriffe.data.name === 'angriffe');
+assert.ok(testreport.data.name === 'testreport');
 console.log('  ✔ Cron-Konverter & Command-Export Tests erfolgreich!\n');
 
 // Test 3: Datenbank-Operationen
@@ -197,10 +203,26 @@ const statusEmbed = createStatusEmbed({
   totalMissedToday: 24,
   incompleteList: [
     { name: 'Max', tag: '#P1', missedDecks: 4, decksUsedToday: 0 }
-  ]
+  ],
+  reminderMessage: 'Folgende Spieler haben noch Decks offen:'
 });
 assert.ok(statusEmbed.data.title.includes('Aktueller Clankriegs-Status'));
-assert.ok(!JSON.stringify(statusEmbed.data).includes('Fortsetzung'));
+assert.ok(JSON.stringify(statusEmbed.data).includes('@Max\\t\\t(4 Decks)'));
+assert.ok(JSON.stringify(statusEmbed.data).includes('Folgende Spieler haben noch Decks offen:'));
+assert.ok(JSON.stringify(statusEmbed.data).includes('```'));
+
+// Test createStrikesEmbed inklusive Copy-Paste Clan-Nachricht
+const strikesEmbed = createStrikesEmbed({
+  strikesList: [
+    { player_name: 'Tom', player_tag: '#P3', total_missed_decks: 5, last_missed_decks: 4, last_missed_date: '2026-10-20' },
+    { player_name: 'Lisa', player_tag: '#P2', total_missed_decks: 2, last_missed_decks: 2, last_missed_date: '2026-10-20' }
+  ],
+  threshold: 5
+});
+assert.ok(strikesEmbed.data.title.includes('Übersicht der verpassten Clankriegs-Decks'));
+assert.ok(strikesEmbed.data.fields.some(f => f.name.includes('Copy-Paste Clan-Nachricht')));
+assert.ok(JSON.stringify(strikesEmbed.data).includes('@Tom\\t\\t(4 Decks verpasst – Gesamt: 5/5 🚨 [KICK])'));
+assert.ok(JSON.stringify(strikesEmbed.data).includes('@Lisa\\t\\t(2 Decks verpasst – Gesamt: 2/5)'));
 
 console.log('  ✔ Embeds fehlerfrei gerendert!\n');
 
@@ -322,6 +344,43 @@ assert.equal(updatedRem.repeat_count, 1);
 assert.ok(updatedRem.next_remind_at > Date.now());
 
 console.log('  ✔ Montags-Erinnerung & 24h-Wiederholung erfolgreich validiert!\n');
+
+// Test 7: /testreport und /erinnerung Validierung
+console.log('▶ Test 7: /testreport und /erinnerung Command-Validierung');
+
+// 7a. /testreport ohne Clan-Tag
+let editReplyContent = null;
+const mockNoClanInteraction = {
+  guildId: 'guild-no-clan-999',
+  channelId: 'channel-999',
+  deferReply: async () => {},
+  editReply: async (data) => {
+    editReplyContent = data.content || '';
+  }
+};
+await testreport.execute(mockNoClanInteraction);
+assert.ok(editReplyContent.includes('Kein Clan-Tag hinterlegt'));
+
+// 7b. /erinnerung ohne Clan-Tag
+editReplyContent = null;
+await erinnerung.execute(mockNoClanInteraction);
+assert.ok(editReplyContent.includes('Kein Clan-Tag hinterlegt'));
+
+// 7c. createWarReportEmbed mit isTest: true
+const testEmbed = createWarReportEmbed({
+  clanName: 'Test Clan',
+  clanTag: '#2PP',
+  periodType: 'warDay',
+  incompleteList: [{ name: 'TestPlayer', tag: '#P99', missedDecks: 2, totalMissed: 2 }],
+  completedCount: 49,
+  totalMembers: 50,
+  kickCandidates: [],
+  dateStr: '20.10.2026, 12:00',
+  isTest: true
+});
+assert.ok(testEmbed.data.footer.text.includes('Manueller Testlauf'));
+
+console.log('  ✔ /testreport und /erinnerung erfolgreich validiert!\n');
 
 // Aufräumen
 closeDatabase();

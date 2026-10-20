@@ -29,6 +29,7 @@ import * as setchannelCommand from './commands/setchannel.js';
 import * as settimeCommand from './commands/settime.js';
 import * as seterinnerungCommand from './commands/seterinnerung.js';
 import * as setreminderCommand from './commands/setreminder.js';
+import * as testreportCommand from './commands/testreport.js';
 import * as resetstrikesCommand from './commands/resetstrikes.js';
 import * as resetallstrikesCommand from './commands/resetallstrikes.js';
 import * as helpCommand from './commands/help.js';
@@ -60,6 +61,7 @@ const commandList = [
   settimeCommand,
   seterinnerungCommand,
   setreminderCommand,
+  testreportCommand,
   resetstrikesCommand,
   resetallstrikesCommand,
   helpCommand
