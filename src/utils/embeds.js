@@ -145,10 +145,15 @@ export function createStatusEmbed({
       inline: false
     });
   } else {
-    // Vor jedem Namen ein @, dahinter 2 Tabs und "(X Decks)"
+    // Vor jedem Namen ein @, dahinter dynamisches Padding für optisch bündige Spalten
+    const maxNameLen = Math.max(...incompleteList.map((p) => (p.name || '').length), 8);
     const playerLines = incompleteList.map((player) => {
+      const name = player.name || 'Unbekannt';
       const decksWord = player.missedDecks === 1 ? 'Deck' : 'Decks';
-      return `@${player.name}\t\t(${player.missedDecks} ${decksWord})`;
+      const diff = Math.max(0, maxNameLen - name.length);
+      const spaceCount = Math.max(2, Math.round(diff * 1.8) + 4);
+      const padding = ' '.repeat(spaceCount);
+      return `@${name}${padding}(${player.missedDecks} ${decksWord})`;
     });
 
     splitIntoFields(
@@ -205,12 +210,17 @@ export function createStrikesEmbed({ strikesList = [], threshold = 5, prunedCoun
       ? strikesList.filter((s) => s.last_missed_date === latestDate)
       : strikesList;
 
+    const maxStrikeNameLen = Math.max(...newlyWarned.map((p) => (p.player_name || '').length), 8);
     const copyLines = newlyWarned.map((p) => {
       const isKick = p.total_missed_decks >= threshold;
       const kickTag = isKick ? ' 🚨 [KICK]' : '';
       const missedNow = p.last_missed_decks || p.total_missed_decks;
       const decksWord = missedNow === 1 ? 'Deck' : 'Decks';
-      return `@${p.player_name}\t\t(${missedNow} ${decksWord} verpasst – Gesamt: ${p.total_missed_decks}/${threshold}${kickTag})`;
+      const name = p.player_name || 'Unbekannt';
+      const diff = Math.max(0, maxStrikeNameLen - name.length);
+      const spaceCount = Math.max(2, Math.round(diff * 1.8) + 4);
+      const padding = ' '.repeat(spaceCount);
+      return `@${name}${padding}(${missedNow} ${decksWord} verpasst – Gesamt: ${p.total_missed_decks}/${threshold}${kickTag})`;
     });
 
     const headerNote = latestDate ? ` (Stand: ${latestDate})` : '';

@@ -217,7 +217,8 @@ const statusEmbed = createStatusEmbed({
   ]
 });
 assert.ok(statusEmbed.data.title.includes('Aktueller Clankriegs-Status'));
-assert.ok(JSON.stringify(statusEmbed.data).includes('@Max\\t\\t(4 Decks)'));
+assert.ok(JSON.stringify(statusEmbed.data).includes('@Max'));
+assert.ok(JSON.stringify(statusEmbed.data).includes('(4 Decks)'));
 // Sicherstellen, dass keine Codeblocks (''') mehr in StatusEmbeds enthalten sind
 assert.ok(!JSON.stringify(statusEmbed.data).includes('```'));
 
@@ -231,8 +232,10 @@ const strikesEmbed = createStrikesEmbed({
 });
 assert.ok(strikesEmbed.data.title.includes('Übersicht der verpassten Clankriegs-Decks'));
 assert.ok(strikesEmbed.data.fields.some(f => f.name.includes('Copy-Paste Clan-Nachricht')));
-assert.ok(JSON.stringify(strikesEmbed.data).includes('@Tom\\t\\t(4 Decks verpasst – Gesamt: 5/5 🚨 [KICK])'));
-assert.ok(JSON.stringify(strikesEmbed.data).includes('@Lisa\\t\\t(2 Decks verpasst – Gesamt: 2/5)'));
+assert.ok(JSON.stringify(strikesEmbed.data).includes('@Tom'));
+assert.ok(JSON.stringify(strikesEmbed.data).includes('(4 Decks verpasst – Gesamt: 5/5 🚨 [KICK])'));
+assert.ok(JSON.stringify(strikesEmbed.data).includes('@Lisa'));
+assert.ok(JSON.stringify(strikesEmbed.data).includes('(2 Decks verpasst – Gesamt: 2/5)'));
 // Sicherstellen, dass keine Codeblocks (''') mehr in StrikesEmbeds enthalten sind
 assert.ok(!JSON.stringify(strikesEmbed.data).includes('```'));
 

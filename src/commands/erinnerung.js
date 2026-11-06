@@ -27,9 +27,16 @@ export async function execute(interaction) {
     }
 
     const prefix = settings.reminder_message || config.defaultReminderMessage;
+
+    // Dynamisches Padding für bündige Spalten in Discords Proportionalschrift (Variante 2: ohne Codeblock)
+    const maxNameLen = Math.max(...warData.incomplete.map((p) => (p.name || '').length), 8);
     const playerLines = warData.incomplete.map((player) => {
+      const name = player.name || 'Unbekannt';
       const decksWord = player.missedDecks === 1 ? 'Deck' : 'Decks';
-      return `@${player.name}\t\t(${player.missedDecks} ${decksWord})`;
+      const diff = Math.max(0, maxNameLen - name.length);
+      const spaceCount = Math.max(2, Math.round(diff * 1.8) + 4);
+      const padding = ' '.repeat(spaceCount);
+      return `@${name}${padding}(${player.missedDecks} ${decksWord})`;
     });
 
     const fullMessage = `${prefix}\n\n${playerLines.join('\n')}`;
