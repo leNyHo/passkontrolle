@@ -398,6 +398,36 @@ export function resetPlayerStrikes(playerTag) {
   return (info?.changes || 0) > 0;
 }
 
+export function setPlayerStrikes(playerTag, count, playerName = null, clanTag = null) {
+  const database = getDatabase();
+  const existing = database.prepare('SELECT * FROM player_strikes WHERE player_tag = ?').get(playerTag);
+  const name = playerName || existing?.player_name || playerTag;
+  const clan = clanTag || existing?.clan_tag || null;
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
+
+  const stmt = database.prepare(`
+    INSERT INTO player_strikes (player_tag, player_name, clan_tag, total_missed_decks, last_missed_decks, last_missed_date, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(player_tag) DO UPDATE SET
+      player_name = CASE WHEN excluded.player_name != excluded.player_tag THEN excluded.player_name ELSE player_strikes.player_name END,
+      clan_tag = COALESCE(excluded.clan_tag, player_strikes.clan_tag),
+      total_missed_decks = excluded.total_missed_decks,
+      last_missed_decks = excluded.last_missed_decks,
+      last_missed_date = excluded.last_missed_date,
+      updated_at = CURRENT_TIMESTAMP
+  `);
+  stmt.run(playerTag, name, clan, count, count, today);
+
+  return {
+    player_tag: playerTag,
+    player_name: name,
+    clan_tag: clan,
+    total_missed_decks: count,
+    last_missed_decks: count,
+    last_missed_date: today
+  };
+}
+
 export function resetAllStrikes(clanTag = null) {
   const database = getDatabase();
   if (clanTag) {

@@ -14,12 +14,13 @@ export async function execute(interaction) {
       {
         name: '⚔️ Clankrieg & Status',
         value:
-          '• `/erinnerung` – Zeigt den Status & eine 1-Klick-Kopiernachricht mit allen offenen Spielern (`@Name (X Decks)`).\n' +
-          '• `/angriffe` – Live-Abfrage des Clankriegs-Status (wie `/erinnerung`).\n' +
-          '• `/verwarnungen` – Übersicht aller verpassten Decks, Kick-Kandidaten & Copy-Paste Clan-Nachricht.\n' +
-          '• `/testreport` – Erstellt einen realistischen Test-Abschlussbericht (ohne Verwarnungen zu speichern).\n' +
-          '• `/resetstrikes [tag]` – Setzt die verpassten Decks eines einzelnen Spielers auf 0 zurück.\n' +
-          '• `/resetallstrikes` – Löscht die Verwarnungen **aller** Spieler in der Datenbank (mit Sicherheitsabfrage).',
+          '• `/erinnerung` – Erstellt die fertige Text-Erinnerungsnachricht zum direkten Kopieren (`@Name (X Decks)`).\n' +
+          '• `/angriffe` – Zeigt das formatierte Status-Embed mit Fortschritt und offenen Decks.\n' +
+          '• `/verwarnungen` – Übersicht aller verpassten Decks, Kick-Kandidaten & Clan-Nachricht.\n' +
+          '• `/setverwarnungen [tag] [anzahl]` – Setzt die Verwarnungen eines Spielers manuell auf einen Wert.\n' +
+          '• `/resetverwarnungen [tag]` – Setzt die verpassten Decks eines Spielers auf 0 zurück.\n' +
+          '• `/resetallstrikes` – Löscht die Verwarnungen **aller** Spieler in der Datenbank (mit Sicherheitsabfrage).\n' +
+          '• `/testreport` – Erstellt einen realistischen Test-Abschlussbericht (ohne Verwarnungen zu speichern).',
         inline: false
       },
       {
@@ -29,7 +30,8 @@ export async function execute(interaction) {
           '• `/setreminder [rolle]` – Legt die Rolle fest, die montags an die Clankriegs-Zeitüberprüfung erinnert wird.\n' +
           '• `/setclan [tag]` – Legt den zu überwachenden Clan-Tag fest (z. B. `#2PP`).\n' +
           '• `/setchannel` – Legt den aktuellen Kanal als Ziel für den täglichen Abschlussbericht fest.\n' +
-          '• `/settime [HH:MM]` – Passt die Kriegsende-Uhrzeit an (Europe/Berlin, Standard: `12:00`).\n' +
+          '• `/setremainingtime [zeit]` – Berechnet und setzt das Kriegsende anhand der Restzeit (z. B. `4h 30m` oder `4:30`).\n' +
+          '• `/settime [HH:MM]` – Passt die Kriegsende-Uhrzeit manuell an (Europe/Berlin, Standard: `12:00`).\n' +
           '• `/seterinnerung [text]` – Ändert den Einleitungstext für die `/erinnerung` Nachricht.\n' +
           '• `/help` – Öffnet diese Hilfeübersicht.',
         inline: false

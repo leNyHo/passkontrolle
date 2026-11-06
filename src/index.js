@@ -27,10 +27,12 @@ import * as verwarnungenCommand from './commands/verwarnungen.js';
 import * as setclanCommand from './commands/setclan.js';
 import * as setchannelCommand from './commands/setchannel.js';
 import * as settimeCommand from './commands/settime.js';
+import * as setremainingtimeCommand from './commands/setremainingtime.js';
 import * as seterinnerungCommand from './commands/seterinnerung.js';
 import * as setreminderCommand from './commands/setreminder.js';
 import * as testreportCommand from './commands/testreport.js';
-import * as resetstrikesCommand from './commands/resetstrikes.js';
+import * as resetverwarnungenCommand from './commands/resetverwarnungen.js';
+import * as setverwarnungenCommand from './commands/setverwarnungen.js';
 import * as resetallstrikesCommand from './commands/resetallstrikes.js';
 import * as helpCommand from './commands/help.js';
 
@@ -59,10 +61,12 @@ const commandList = [
   setclanCommand,
   setchannelCommand,
   settimeCommand,
+  setremainingtimeCommand,
   seterinnerungCommand,
   setreminderCommand,
   testreportCommand,
-  resetstrikesCommand,
+  resetverwarnungenCommand,
+  setverwarnungenCommand,
   resetallstrikesCommand,
   helpCommand
 ];
@@ -84,24 +88,27 @@ async function registerSlashCommands() {
 
   const rest = new REST({ version: '10' }).setToken(config.discordToken);
   try {
-    console.log(`[Commands] Registriere ${commandsPayload.length} Slash-Commands bei Discord...`);
-    
-    // 1. Global registrieren
+    console.log(`[Commands] Registriere ${commandsPayload.length} globale Slash-Commands bei Discord...`);
+
+    // 1. Global registrieren (einheitliche Befehlsliste für alle Server)
     await rest.put(
       Routes.applicationCommands(config.discordClientId),
       { body: commandsPayload }
     );
 
-    // 2. Direkt pro Server registrieren (erscheinen dadurch sofort ohne Wartezeit)
+    // 2. Server-spezifische Guild-Commands leeren (verhindert doppelte Anzeige in der Discord-Vorschau)
     for (const guild of client.guilds.cache.values()) {
-      await rest.put(
-        Routes.applicationGuildCommands(config.discordClientId, guild.id),
-        { body: commandsPayload }
-      );
-      console.log(`[Commands] Sofortige Bereitstellung auf Server "${guild.name}" (${guild.id}) aktiv!`);
+      try {
+        await rest.put(
+          Routes.applicationGuildCommands(config.discordClientId, guild.id),
+          { body: [] }
+        );
+      } catch (gErr) {
+        console.warn(`[Commands] Konnte Guild-Commands für "${guild.name}" nicht leeren:`, gErr.message);
+      }
     }
 
-    console.log('[Commands] Slash-Commands erfolgreich registriert!');
+    console.log('[Commands] Slash-Commands erfolgreich registriert und Duplikate bereinigt!');
   } catch (error) {
     console.error('[Commands] Fehler beim Registrieren der Slash-Commands:', error);
   }
@@ -126,16 +133,16 @@ client.on(Events.GuildCreate, async (guild) => {
   console.log(`[Discord] Neuem Server beigetreten: "${guild.name}" (${guild.id})`);
   scheduleGuildWarEnd(client, guild.id, config.defaultWarEndTime, config.timezone);
 
+  // Duplikate verhindern: Guild-spezifische Befehle auf neuem Server sicherheitshalber leeren
   if (config.discordToken && config.discordClientId) {
     try {
       const rest = new REST({ version: '10' }).setToken(config.discordToken);
       await rest.put(
         Routes.applicationGuildCommands(config.discordClientId, guild.id),
-        { body: commandsPayload }
+        { body: [] }
       );
-      console.log(`[Commands] Sofortige Bereitstellung auf neuem Server "${guild.name}" (${guild.id}) aktiv!`);
-    } catch (err) {
-      console.warn(`[Commands] Konnte Guild-Commands für "${guild.name}" nicht sofort registrieren:`, err.message);
+    } catch {
+      // Ignorieren falls nicht nötig
     }
   }
 });

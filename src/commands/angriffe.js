@@ -6,7 +6,7 @@ import { config } from '../config.js';
 
 export const data = new SlashCommandBuilder()
   .setName('angriffe')
-  .setDescription('Ruft den aktuellen Angriffsstatus und die Clankriegs-Erinnerung ab.');
+  .setDescription('Ruft den aktuellen Angriffsstatus des laufenden Clankrieges als Übersicht ab.');
 
 export async function execute(interaction) {
   await interaction.deferReply();

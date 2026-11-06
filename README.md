@@ -13,17 +13,19 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
 - **🚨 Automatische Kick-Vorschläge:** Spieler mit **5 oder mehr verpassten Decks** werden im Tagesbericht prominent als Kick-Kandidaten ausgewiesen.
 - **🛠️ Vollständige Admin & Co-Leader Slash-Commands:**
   - `/erlauberolle [Rolle]` – Erlaubt einer Rolle (z. B. `@Co-Leader`) die volle Bot-Nutzung ohne Discord-Admin-Rechte.
-  - `/erinnerung` – Live-Kriegsstatus & 1-Klick-Kopiernachricht mit allen offenen Spielern (`@Name (X Decks)`).
-  - `/angriffe` – Live-Kriegsstatus abrufen (Alias für `/erinnerung`).
-  - `/verwarnungen` – Gesamtübersicht aller Spieler mit verpassten Decks, Kick-Kandidaten & fertiger Clan-Nachricht zum Kopieren.
+  - `/erinnerung` – Erstellt die reine Text-Erinnerungsnachricht (`@Name (X Decks)`) zum direkten Kopieren und Weiterleiten.
+  - `/angriffe` – Live-Kriegsstatus als formatiertes Embed abrufen.
+  - `/verwarnungen` – Gesamtübersicht aller Spieler mit verpassten Decks, Kick-Kandidaten & Clan-Nachricht zum Kopieren.
+  - `/setverwarnungen [Tag] [Anzahl]` – Verwarnstand (verpasste Decks) eines Spielers manuell festlegen.
+  - `/resetverwarnungen [Spieler-Tag]` – Verpasste Decks für einen einzelnen Spieler auf 0 zurücksetzen.
+  - `/resetallstrikes` – Setzt die Verwarnungen **aller** Spieler auf 0 zurück (mit Bestätigungsabfrage).
   - `/testreport` – Erstellt einen realistischen Test-Abschlussbericht mit echten Daten (ohne Verwarnungen zu speichern).
+  - `/setremainingtime [Zeit]` – Berechnet und setzt das Kriegsende anhand der Restzeit (z. B. `4h 30m` oder `4:30`).
+  - `/settime [HH:MM]` – Kriegsende-Uhrzeit in `Europe/Berlin` manuell anpassen (z. B. `11:30`).
   - `/setreminder [Rolle]` – Legt die Rolle fest, die montags nach dem Clankrieg an die Zeitüberprüfung erinnert wird (Bestätigung per ✅, Wiederholung alle 24h).
   - `/setclan [Clan-Tag]` – Clan festlegen oder wechseln (z. B. `#2PP`).
   - `/setchannel` – Aktuellen Kanal als Ziel für Berichte festlegen.
-  - `/settime [HH:MM]` – Kriegsende-Uhrzeit in `Europe/Berlin` anpassen (z. B. `11:30`).
   - `/seterinnerung [Text]` – Eigenen Einleitungstext für die `/erinnerung` Nachricht hinterlegen.
-  - `/resetstrikes [Spieler-Tag]` – Verpasste Decks für einen einzelnen Spieler auf 0 zurücksetzen.
-  - `/resetallstrikes` – Setzt die Verwarnungen **aller** Spieler auf 0 zurück (mit Bestätigungsabfrage).
   - `/help` – Zeigt eine formatierte Übersicht aller Befehle.
 
 ---

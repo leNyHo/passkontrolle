@@ -3,8 +3,8 @@ import { resetPlayerStrikes, getPlayerStrikes } from '../services/database.js';
 import { normalizeClanTag } from '../services/clashRoyale.js';
 
 export const data = new SlashCommandBuilder()
-  .setName('resetstrikes')
-  .setDescription('Setzt die verpassten Decks eines Spielers in der Datenbank auf 0 zurück.')
+  .setName('resetverwarnungen')
+  .setDescription('Setzt die verpassten Decks (Verwarnungen) eines Spielers auf 0 zurück.')
   .addStringOption(option =>
     option
       .setName('tag')
@@ -27,6 +27,6 @@ export async function execute(interaction) {
   resetPlayerStrikes(playerTag);
 
   await interaction.reply({
-    content: `✅ **Strikes zurückgesetzt!**\nDie verpassten Decks für **${existing.player_name}** (\`${playerTag}\`) wurden von **${existing.total_missed_decks}** auf **0** zurückgesetzt.`
+    content: `✅ **Verwarnungen zurückgesetzt!**\nDie verpassten Decks für **${existing.player_name}** (\`${playerTag}\`) wurden von **${existing.total_missed_decks}** auf **0** zurückgesetzt.`
   });
 }

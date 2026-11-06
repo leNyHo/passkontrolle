@@ -145,54 +145,21 @@ export function createStatusEmbed({
       inline: false
     });
   } else {
-    // Vor jedem Namen ein @, dahinter 2 Tabs und "(X Decks)", gefolgt von Zeilenumbruch
+    // Vor jedem Namen ein @, dahinter 2 Tabs und "(X Decks)"
     const playerLines = incompleteList.map((player) => {
       const decksWord = player.missedDecks === 1 ? 'Deck' : 'Decks';
       return `@${player.name}\t\t(${player.missedDecks} ${decksWord})`;
     });
 
-    const prefix = reminderMessage || 'Folgende Spieler haben noch Decks offen:';
-    const copyContent = `${prefix}\n\n${playerLines.join('\n')}`;
-    const codeBlock = `\`\`\`\n${copyContent}\n\`\`\``;
-
-    if (codeBlock.length <= 1024) {
-      embed.addFields({
-        name: `⏳ Noch ausstehende Angriffe (${incompleteCount} Spieler)`,
-        value: codeBlock,
-        inline: false
-      });
-    } else {
-      let currentChunk = `${prefix}\n\n`;
-      let fieldIndex = 1;
-
-      for (const line of playerLines) {
-        if (`\`\`\`\n${currentChunk}${line}\n\`\`\``.length > 1020) {
-          embed.addFields({
-            name: fieldIndex === 1
-              ? `⏳ Ausstehende Angriffe (${incompleteCount} Spieler)`
-              : `⏳ Ausstehende Angriffe (Teil ${fieldIndex})`,
-            value: `\`\`\`\n${currentChunk.trim()}\n\`\`\``,
-            inline: false
-          });
-          currentChunk = '';
-          fieldIndex++;
-        }
-        currentChunk += `${line}\n`;
-      }
-
-      if (currentChunk.trim()) {
-        embed.addFields({
-          name: fieldIndex === 1
-            ? `⏳ Ausstehende Angriffe (${incompleteCount} Spieler)`
-            : `⏳ Ausstehende Angriffe (Teil ${fieldIndex})`,
-          value: `\`\`\`\n${currentChunk.trim()}\n\`\`\``,
-          inline: false
-        });
-      }
-    }
+    splitIntoFields(
+      embed,
+      `⏳ Noch ausstehende Angriffe (${incompleteCount} Spieler)`,
+      playerLines,
+      '🎉 Alle Mitglieder haben ihre 4 Angriffe für heute bereits abgeschlossen!'
+    );
   }
 
-  embed.setFooter({ text: 'Clash Royale Admin Bot • Live-Abfrage via /erinnerung' });
+  embed.setFooter({ text: 'Clash Royale Admin Bot • Live-Abfrage via /angriffe' });
   return embed;
 }
 
@@ -227,7 +194,7 @@ export function createStrikesEmbed({ strikesList = [], threshold = 5, prunedCoun
 
     splitIntoFields(embed, `Registrierte Spieler (${strikesList.length})`, lines, 'Keine Einträge');
 
-    // 2. Neuer Abschnitt: Copy-Paste Nachricht für den Clan
+    // 2. Neuer Abschnitt: Copy-Paste Nachricht für den Clan (ohne Code-Block / ''' )
     // Ermittle das aktuellste Verwarn-Datum
     const latestDate = strikesList.reduce((max, s) => {
       return s.last_missed_date && s.last_missed_date > max ? s.last_missed_date : max;
@@ -247,43 +214,21 @@ export function createStrikesEmbed({ strikesList = [], threshold = 5, prunedCoun
     });
 
     const headerNote = latestDate ? ` (Stand: ${latestDate})` : '';
-    const clanMessageText =
-      `⚠️ Clankriegs-Verwarnung${headerNote}:\n` +
-      `Folgende Spieler haben Decks verpasst und erhalten eine Verwarnung:\n\n` +
-      `${copyLines.join('\n')}\n\n` +
-      `Ab ${threshold} verpassten Decks erfolgt der Kick. Bitte holt eure Angriffe im nächsten Clankrieg nach!`;
+    const clanMessageLines = [
+      `⚠️ Clankriegs-Verwarnung${headerNote}:`,
+      `Folgende Spieler haben Decks verpasst und erhalten eine Verwarnung:`,
+      '',
+      ...copyLines,
+      '',
+      `Ab ${threshold} verpassten Decks erfolgt der Kick. Bitte holt eure Angriffe im nächsten Clankrieg nach!`
+    ];
 
-    const clanCodeBlock = `\`\`\`\n${clanMessageText}\n\`\`\``;
-
-    if (clanCodeBlock.length <= 1024) {
-      embed.addFields({
-        name: `📢 Copy-Paste Clan-Nachricht (Neu verwarnte Mitglieder: ${newlyWarned.length})`,
-        value: clanCodeBlock,
-        inline: false
-      });
-    } else {
-      let chunk = `⚠️ Clankriegs-Verwarnung${headerNote}:\n\n`;
-      let part = 1;
-      for (const line of copyLines) {
-        if (`\`\`\`\n${chunk}${line}\n\`\`\``.length > 1020) {
-          embed.addFields({
-            name: `📢 Copy-Paste Clan-Nachricht (Teil ${part})`,
-            value: `\`\`\`\n${chunk.trim()}\n\`\`\``,
-            inline: false
-          });
-          chunk = '';
-          part++;
-        }
-        chunk += `${line}\n`;
-      }
-      if (chunk.trim()) {
-        embed.addFields({
-          name: `📢 Copy-Paste Clan-Nachricht (Teil ${part})`,
-          value: `\`\`\`\n${chunk.trim()}\n\nAb ${threshold} verpassten Decks erfolgt der Kick!\`\`\``,
-          inline: false
-        });
-      }
-    }
+    splitIntoFields(
+      embed,
+      `📢 Copy-Paste Clan-Nachricht (Neu verwarnte Mitglieder: ${newlyWarned.length})`,
+      clanMessageLines,
+      'Keine neuen Verwarnungen.'
+    );
   }
 
   embed.setFooter({ text: 'Clash Royale Admin Bot • Verwarnungen-Datenbank' });

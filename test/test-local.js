@@ -24,6 +24,7 @@ const {
   getKickCandidates,
   getAllStrikes,
   resetPlayerStrikes,
+  setPlayerStrikes,
   resetAllStrikes,
   pruneStrikesNotInMemberList,
   saveTimeCheckReminder,
@@ -49,6 +50,13 @@ const setreminder = await import('../src/commands/setreminder.js');
 const erinnerung = await import('../src/commands/erinnerung.js');
 const angriffe = await import('../src/commands/angriffe.js');
 const testreport = await import('../src/commands/testreport.js');
+const resetverwarnungen = await import('../src/commands/resetverwarnungen.js');
+const setverwarnungen = await import('../src/commands/setverwarnungen.js');
+const {
+  data: setremainingtimeData,
+  parseRemainingTime,
+  calculateWarEndTimeFromRemaining
+} = await import('../src/commands/setremainingtime.js');
 
 // Test 1: Clan Tag Normalisierung
 console.log('▶ Test 1: Clan-Tag Normalisierung & URL-Encoding');
@@ -69,6 +77,9 @@ assert.ok(setreminder.data.options.some((o) => o.name === 'deaktivieren'));
 assert.ok(erinnerung.data.name === 'erinnerung');
 assert.ok(angriffe.data.name === 'angriffe');
 assert.ok(testreport.data.name === 'testreport');
+assert.ok(resetverwarnungen.data.name === 'resetverwarnungen');
+assert.ok(setverwarnungen.data.name === 'setverwarnungen');
+assert.ok(setremainingtimeData.name === 'setremainingtime');
 console.log('  ✔ Cron-Konverter & Command-Export Tests erfolgreich!\n');
 
 // Test 3: Datenbank-Operationen
@@ -203,13 +214,12 @@ const statusEmbed = createStatusEmbed({
   totalMissedToday: 24,
   incompleteList: [
     { name: 'Max', tag: '#P1', missedDecks: 4, decksUsedToday: 0 }
-  ],
-  reminderMessage: 'Folgende Spieler haben noch Decks offen:'
+  ]
 });
 assert.ok(statusEmbed.data.title.includes('Aktueller Clankriegs-Status'));
 assert.ok(JSON.stringify(statusEmbed.data).includes('@Max\\t\\t(4 Decks)'));
-assert.ok(JSON.stringify(statusEmbed.data).includes('Folgende Spieler haben noch Decks offen:'));
-assert.ok(JSON.stringify(statusEmbed.data).includes('```'));
+// Sicherstellen, dass keine Codeblocks (''') mehr in StatusEmbeds enthalten sind
+assert.ok(!JSON.stringify(statusEmbed.data).includes('```'));
 
 // Test createStrikesEmbed inklusive Copy-Paste Clan-Nachricht
 const strikesEmbed = createStrikesEmbed({
@@ -223,8 +233,10 @@ assert.ok(strikesEmbed.data.title.includes('Übersicht der verpassten Clankriegs
 assert.ok(strikesEmbed.data.fields.some(f => f.name.includes('Copy-Paste Clan-Nachricht')));
 assert.ok(JSON.stringify(strikesEmbed.data).includes('@Tom\\t\\t(4 Decks verpasst – Gesamt: 5/5 🚨 [KICK])'));
 assert.ok(JSON.stringify(strikesEmbed.data).includes('@Lisa\\t\\t(2 Decks verpasst – Gesamt: 2/5)'));
+// Sicherstellen, dass keine Codeblocks (''') mehr in StrikesEmbeds enthalten sind
+assert.ok(!JSON.stringify(strikesEmbed.data).includes('```'));
 
-console.log('  ✔ Embeds fehlerfrei gerendert!\n');
+console.log('  ✔ Embeds fehlerfrei gerendert (ohne Code-Blöcke / \'\'\')!\n');
 
 // Test 6: Montags-Erinnerung zur Clankriegs-Zeitüberprüfung (/setreminder & 24h-Wiederholung)
 console.log('▶ Test 6: Montags-Erinnerung zur Clankriegs-Zeitüberprüfung & 24h-Wiederholung');
@@ -381,6 +393,83 @@ const testEmbed = createWarReportEmbed({
 assert.ok(testEmbed.data.footer.text.includes('Manueller Testlauf'));
 
 console.log('  ✔ /testreport und /erinnerung erfolgreich validiert!\n');
+
+// Test 8: /setremainingtime, /setverwarnungen & /resetverwarnungen
+console.log('▶ Test 8: /setremainingtime, /setverwarnungen & /resetverwarnungen');
+
+// 8a. parseRemainingTime
+const p1 = parseRemainingTime('4h 30m');
+assert.deepEqual(p1, { hours: 4, minutes: 30, totalMinutes: 270 });
+
+const p2 = parseRemainingTime('4:30');
+assert.deepEqual(p2, { hours: 4, minutes: 30, totalMinutes: 270 });
+
+const p3 = parseRemainingTime('45m');
+assert.deepEqual(p3, { hours: 0, minutes: 45, totalMinutes: 45 });
+
+const p4 = parseRemainingTime('2h');
+assert.deepEqual(p4, { hours: 2, minutes: 0, totalMinutes: 120 });
+
+const p5 = parseRemainingTime('3 Std 15 Min');
+assert.deepEqual(p5, { hours: 3, minutes: 15, totalMinutes: 195 });
+
+assert.equal(parseRemainingTime('invalid_text'), null);
+assert.equal(parseRemainingTime(''), null);
+
+// 8b. calculateWarEndTimeFromRemaining
+// UTC 12:00 = 13:00 in Europe/Berlin (Standardzeit UTC+1)
+const baseDate = new Date('2026-11-06T12:00:00Z');
+const calcEnd = calculateWarEndTimeFromRemaining(90, 'Europe/Berlin', baseDate); // 13:00 + 90m = 14:30
+assert.equal(calcEnd, '14:30');
+
+// 8c. setPlayerStrikes & resetPlayerStrikes
+const resStrike1 = setPlayerStrikes('#P55', 3, 'ManuelGamer', '#CLAN1');
+assert.equal(resStrike1.total_missed_decks, 3);
+assert.equal(resStrike1.player_name, 'ManuelGamer');
+
+const fetchedStrike = getPlayerStrikes('#P55');
+assert.equal(fetchedStrike.total_missed_decks, 3);
+
+// Manueller Verwarnwert auf 6 erhöhen (Kick-Kandidat!)
+setPlayerStrikes('#P55', 6);
+const kickList = getKickCandidates(5);
+assert.ok(kickList.some(k => k.player_tag === '#P55'));
+
+// Zurücksetzen mit resetPlayerStrikes
+resetPlayerStrikes('#P55');
+assert.equal(getPlayerStrikes('#P55').total_missed_decks, 0);
+
+// 8d. /setverwarnungen und /resetverwarnungen Interactions
+let setVerwarnReply = null;
+const mockSetVerwarnInteraction = {
+  guildId: 'guild-test',
+  options: {
+    getString: (name) => name === 'tag' ? '#P55' : null,
+    getInteger: (name) => name === 'anzahl' ? 4 : null
+  },
+  reply: async (data) => {
+    setVerwarnReply = data.content;
+  }
+};
+await setverwarnungen.execute(mockSetVerwarnInteraction);
+assert.ok(setVerwarnReply.includes('Verwarnstand erfolgreich aktualisiert'));
+assert.equal(getPlayerStrikes('#P55').total_missed_decks, 4);
+
+let resetVerwarnReply = null;
+const mockResetVerwarnInteraction = {
+  guildId: 'guild-test',
+  options: {
+    getString: (name) => name === 'tag' ? '#P55' : null
+  },
+  reply: async (data) => {
+    resetVerwarnReply = data.content;
+  }
+};
+await resetverwarnungen.execute(mockResetVerwarnInteraction);
+assert.ok(resetVerwarnReply.includes('Verwarnungen zurückgesetzt'));
+assert.equal(getPlayerStrikes('#P55').total_missed_decks, 0);
+
+console.log('  ✔ /setremainingtime, /setverwarnungen & /resetverwarnungen erfolgreich validiert!\n');
 
 // Aufräumen
 closeDatabase();
