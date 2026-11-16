@@ -112,7 +112,7 @@ export function createWarReportEmbed({
 }
 
 /**
- * Erstellt das Live-Status- & Erinnerungs-Embed für /erinnerung (und /angriffe)
+ * Erstellt das Live-Status-Embed für /angriffe
  */
 export function createStatusEmbed({
   clanName,
@@ -122,8 +122,7 @@ export function createStatusEmbed({
   incompleteCount,
   totalMembers,
   totalMissedToday,
-  incompleteList = [],
-  reminderMessage = 'Folgende Spieler haben noch Decks offen:'
+  incompleteList = []
 }) {
   const percentage = totalMembers > 0 ? Math.round((completedCount / totalMembers) * 100) : 0;
   const isComplete = incompleteCount === 0;
@@ -145,21 +144,16 @@ export function createStatusEmbed({
       inline: false
     });
   } else {
-    // Vor jedem Namen ein @, dahinter dynamisches Padding für optisch bündige Spalten
-    const maxNameLen = Math.max(...incompleteList.map((p) => (p.name || '').length), 8);
-    const playerLines = incompleteList.map((player) => {
+    // Zeigt den aktuellen Stand (z.B. 0/4 Decks, 2/4 Decks) ohne verbleibende Decks in Klammern
+    const lines = incompleteList.map((player) => {
       const name = player.name || 'Unbekannt';
-      const decksWord = player.missedDecks === 1 ? 'Deck' : 'Decks';
-      const diff = Math.max(0, maxNameLen - name.length);
-      const spaceCount = Math.max(2, Math.round(diff * 1.8) + 4);
-      const padding = ' '.repeat(spaceCount);
-      return `@${name}${padding}(${player.missedDecks} ${decksWord})`;
+      return `• **${name}**: ${player.decksUsedToday}/4 Decks`;
     });
 
     splitIntoFields(
       embed,
       `⏳ Noch ausstehende Angriffe (${incompleteCount} Spieler)`,
-      playerLines,
+      lines,
       '🎉 Alle Mitglieder haben ihre 4 Angriffe für heute bereits abgeschlossen!'
     );
   }
@@ -190,11 +184,12 @@ export function createStrikesEmbed({ strikesList = [], threshold = 5, prunedCoun
       inline: false
     });
   } else {
-    // 1. Liste aller registrierten Spieler
+    // 1. Liste aller registrierten Spieler (inklusive Player-Tag)
     const lines = strikesList.map((s, idx) => {
       const isKick = s.total_missed_decks >= threshold;
       const marker = isKick ? '🚨 **[KICK-KANDIDAT]** ' : '⚠️ ';
-      return `${idx + 1}. ${marker}**${s.player_name}**: **${s.total_missed_decks}** Decks verpasst (Zuletzt: ${s.last_missed_date || 'k.A.'})`;
+      const tagStr = s.player_tag ? ` (\`${s.player_tag}\`)` : '';
+      return `${idx + 1}. ${marker}**${s.player_name}**${tagStr}: **${s.total_missed_decks}** Decks verpasst (Zuletzt: ${s.last_missed_date || 'k.A.'})`;
     });
 
     splitIntoFields(embed, `Registrierte Spieler (${strikesList.length})`, lines, 'Keine Einträge');
@@ -217,10 +212,11 @@ export function createStrikesEmbed({ strikesList = [], threshold = 5, prunedCoun
       const missedNow = p.last_missed_decks || p.total_missed_decks;
       const decksWord = missedNow === 1 ? 'Deck' : 'Decks';
       const name = p.player_name || 'Unbekannt';
+      const tagStr = p.player_tag ? ` (${p.player_tag})` : '';
       const diff = Math.max(0, maxStrikeNameLen - name.length);
       const spaceCount = Math.max(2, Math.round(diff * 1.8) + 4);
       const padding = ' '.repeat(spaceCount);
-      return `@${name}${padding}(${missedNow} ${decksWord} verpasst – Gesamt: ${p.total_missed_decks}/${threshold}${kickTag})`;
+      return `@${name}${tagStr}${padding}(${missedNow} ${decksWord} verpasst – Gesamt: ${p.total_missed_decks}/${threshold}${kickTag})`;
     });
 
     const headerNote = latestDate ? ` (Stand: ${latestDate})` : '';

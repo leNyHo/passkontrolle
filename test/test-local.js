@@ -217,12 +217,13 @@ const statusEmbed = createStatusEmbed({
   ]
 });
 assert.ok(statusEmbed.data.title.includes('Aktueller Clankriegs-Status'));
-assert.ok(JSON.stringify(statusEmbed.data).includes('@Max'));
-assert.ok(JSON.stringify(statusEmbed.data).includes('(4 Decks)'));
+assert.ok(JSON.stringify(statusEmbed.data).includes('**Max**: 0/4 Decks'));
+// Sicherstellen, dass die (4 Decks) Rest-Angabe bei /angriffe komplett raus ist
+assert.ok(!JSON.stringify(statusEmbed.data).includes('(4 Decks)'));
 // Sicherstellen, dass keine Codeblocks (''') mehr in StatusEmbeds enthalten sind
 assert.ok(!JSON.stringify(statusEmbed.data).includes('```'));
 
-// Test createStrikesEmbed inklusive Copy-Paste Clan-Nachricht
+// Test createStrikesEmbed inklusive Playertag und Copy-Paste Clan-Nachricht
 const strikesEmbed = createStrikesEmbed({
   strikesList: [
     { player_name: 'Tom', player_tag: '#P3', total_missed_decks: 5, last_missed_decks: 4, last_missed_date: '2026-10-20' },
@@ -232,9 +233,12 @@ const strikesEmbed = createStrikesEmbed({
 });
 assert.ok(strikesEmbed.data.title.includes('Übersicht der verpassten Clankriegs-Decks'));
 assert.ok(strikesEmbed.data.fields.some(f => f.name.includes('Copy-Paste Clan-Nachricht')));
-assert.ok(JSON.stringify(strikesEmbed.data).includes('@Tom'));
+// Sicherstellen, dass Playertag in der Übersicht ausgegeben wird
+assert.ok(JSON.stringify(strikesEmbed.data).includes('**Tom** (`#P3`)'));
+assert.ok(JSON.stringify(strikesEmbed.data).includes('**Lisa** (`#P2`)'));
+assert.ok(JSON.stringify(strikesEmbed.data).includes('@Tom (#P3)'));
 assert.ok(JSON.stringify(strikesEmbed.data).includes('(4 Decks verpasst – Gesamt: 5/5 🚨 [KICK])'));
-assert.ok(JSON.stringify(strikesEmbed.data).includes('@Lisa'));
+assert.ok(JSON.stringify(strikesEmbed.data).includes('@Lisa (#P2)'));
 assert.ok(JSON.stringify(strikesEmbed.data).includes('(2 Decks verpasst – Gesamt: 2/5)'));
 // Sicherstellen, dass keine Codeblocks (''') mehr in StrikesEmbeds enthalten sind
 assert.ok(!JSON.stringify(strikesEmbed.data).includes('```'));

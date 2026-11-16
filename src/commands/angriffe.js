@@ -20,7 +20,6 @@ export async function execute(interaction) {
     }
 
     const warData = await getWarParticipation(settings.clan_tag);
-    const reminderPrefix = settings.reminder_message || config.defaultReminderMessage;
 
     const embed = createStatusEmbed({
       clanName: warData.clanName,
@@ -30,8 +29,7 @@ export async function execute(interaction) {
       incompleteCount: warData.incompleteCount,
       totalMembers: warData.totalMembers,
       totalMissedToday: warData.totalMissedToday,
-      incompleteList: warData.incomplete,
-      reminderMessage: reminderPrefix
+      incompleteList: warData.incomplete
     });
 
     await interaction.editReply({ embeds: [embed] });
