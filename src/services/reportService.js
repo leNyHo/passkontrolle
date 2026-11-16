@@ -62,22 +62,35 @@ export async function executeWarReminder(client, guildId) {
   }
 
   const prefix = settings.reminder_message || config.defaultReminderMessage;
-  const playerEntries = warData.incomplete.map(p => `@${p.name} (${p.missedDecks})`);
-  const reminderText = `${prefix} ${playerEntries.join(', ')}`;
+  const suffix = settings.reminder_suffix || config.defaultReminderSuffix;
+  const playerLines = warData.incomplete.map(p => `@${p.name}`);
+  const lines = [];
+  if (prefix) lines.push(prefix);
+  lines.push(...playerLines);
+  if (suffix) lines.push(suffix);
+  const reminderText = lines.join('\n');
 
   if (reminderText.length <= 2000) {
     await targetChannel.send({ content: reminderText });
   } else {
     const chunks = [];
-    let current = `${prefix}\n`;
-    for (const entry of playerEntries) {
-      if (current.length + entry.length + 2 > 1950) {
-        chunks.push(current);
+    let current = prefix ? `${prefix}\n` : '';
+    for (const playerLine of playerLines) {
+      if (current.length + playerLine.length + 1 > 1950) {
+        chunks.push(current.trim());
         current = '';
       }
-      current += (current ? ', ' : '') + entry;
+      current += `${playerLine}\n`;
     }
-    if (current) chunks.push(current);
+    if (suffix) {
+      if ((current + suffix).length > 1950) {
+        chunks.push(current.trim());
+        current = suffix;
+      } else {
+        current += suffix;
+      }
+    }
+    if (current.trim()) chunks.push(current.trim());
 
     for (const chunk of chunks) {
       await targetChannel.send({ content: chunk });

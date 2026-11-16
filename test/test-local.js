@@ -48,6 +48,8 @@ const {
 const erlauberolle = await import('../src/commands/erlauberolle.js');
 const setreminder = await import('../src/commands/setreminder.js');
 const erinnerung = await import('../src/commands/erinnerung.js');
+const seterinnerung = await import('../src/commands/seterinnerung.js');
+const seterinnerungsendtext = await import('../src/commands/seterinnerungsendtext.js');
 const angriffe = await import('../src/commands/angriffe.js');
 const testreport = await import('../src/commands/testreport.js');
 const resetverwarnungen = await import('../src/commands/resetverwarnungen.js');
@@ -75,6 +77,11 @@ assert.ok(setreminder.data.name === 'setreminder');
 assert.ok(setreminder.data.options.some((o) => o.name === 'rolle'));
 assert.ok(setreminder.data.options.some((o) => o.name === 'deaktivieren'));
 assert.ok(erinnerung.data.name === 'erinnerung');
+assert.ok(seterinnerung.data.name === 'seterinnerung');
+assert.ok(seterinnerung.data.options.some((o) => o.name === 'text'));
+assert.ok(seterinnerung.data.options.some((o) => o.name === 'endtext'));
+assert.ok(seterinnerungsendtext.data.name === 'seterinnerungsendtext');
+assert.ok(seterinnerungsendtext.data.options.some((o) => o.name === 'text'));
 assert.ok(angriffe.data.name === 'angriffe');
 assert.ok(testreport.data.name === 'testreport');
 assert.ok(resetverwarnungen.data.name === 'resetverwarnungen');
@@ -88,7 +95,8 @@ const guildId = '123456789012345678';
 const initialSettings = getGuildSettings(guildId);
 assert.equal(initialSettings.war_end_time, '12:00');
 assert.equal(initialSettings.clan_tag, null);
-assert.equal(initialSettings.reminder_message, 'Folgende Spieler haben noch Decks offen:');
+assert.equal(initialSettings.reminder_message, 'Erinnerung an folgende Spieler:');
+assert.equal(initialSettings.reminder_suffix, 'Ihr habt noch Decks offen!');
 assert.equal(initialSettings.allowed_role_id, null);
 assert.equal(initialSettings.reminder_role_id, null);
 
@@ -97,6 +105,7 @@ saveGuildSettings(guildId, {
   channel_id: '987654321098765432',
   war_end_time: '11:30',
   reminder_message: 'Kriegs-Erinnerung:',
+  reminder_suffix: 'Bitte bis 12 Uhr angreifen!',
   allowed_role_id: '111222333444555666',
   reminder_role_id: '999888777666555444'
 });
@@ -106,6 +115,7 @@ assert.equal(updatedSettings.clan_tag, '#2PP');
 assert.equal(updatedSettings.channel_id, '987654321098765432');
 assert.equal(updatedSettings.war_end_time, '11:30');
 assert.equal(updatedSettings.reminder_message, 'Kriegs-Erinnerung:');
+assert.equal(updatedSettings.reminder_suffix, 'Bitte bis 12 Uhr angreifen!');
 assert.equal(updatedSettings.allowed_role_id, '111222333444555666');
 assert.equal(updatedSettings.reminder_role_id, '999888777666555444');
 console.log('  ✔ Guild-Settings erfolgreich gespeichert und geladen!\n');
@@ -399,7 +409,65 @@ const testEmbed = createWarReportEmbed({
 });
 assert.ok(testEmbed.data.footer.text.includes('Manueller Testlauf'));
 
-console.log('  ✔ /testreport und /erinnerung erfolgreich validiert!\n');
+// 7d. /seterinnerung & /seterinnerungsendtext Interactions
+let seterinnerungReply = null;
+const mockSetErinnerungInteraction = {
+  guildId: 'guild-test-settings',
+  options: {
+    getString: (name) => {
+      if (name === 'text') return 'Erinnerung an folgende Krieger:';
+      if (name === 'endtext') return 'Macht bitte eure 4 Angriffe!';
+      return null;
+    }
+  },
+  reply: async (data) => {
+    seterinnerungReply = data.content;
+  }
+};
+await seterinnerung.execute(mockSetErinnerungInteraction);
+assert.ok(seterinnerungReply.includes('Erinnerungstext(e) erfolgreich aktualisiert'));
+const checkedSettings = getGuildSettings('guild-test-settings');
+assert.equal(checkedSettings.reminder_message, 'Erinnerung an folgende Krieger:');
+assert.equal(checkedSettings.reminder_suffix, 'Macht bitte eure 4 Angriffe!');
+
+// /seterinnerungsendtext separat
+let endtextReply = null;
+const mockEndtextInteraction = {
+  guildId: 'guild-test-settings',
+  options: {
+    getString: (name) => name === 'text' ? 'Ihr habt noch Decks offen!' : null
+  },
+  reply: async (data) => {
+    endtextReply = data.content;
+  }
+};
+await seterinnerungsendtext.execute(mockEndtextInteraction);
+assert.ok(endtextReply.includes('Schlusstext für `/erinnerung` aktualisiert'));
+const checkedSettings2 = getGuildSettings('guild-test-settings');
+assert.equal(checkedSettings2.reminder_suffix, 'Ihr habt noch Decks offen!');
+
+// 7e. Formatierung von /erinnerung prüfen (keine x/4 Decks, keine (4 Decks), nur @Spieler)
+const sampleIncomplete = [
+  { name: '☆P.E.K.K.A☆', missedDecks: 4 },
+  { name: '6lvck', missedDecks: 4 },
+  { name: 'gaseber', missedDecks: 1 }
+];
+const prefix = checkedSettings2.reminder_message;
+const suffix = checkedSettings2.reminder_suffix;
+const playerLines = sampleIncomplete.map((p) => `@${p.name}`);
+const fullReminderMsg = `${prefix}\n${playerLines.join('\n')}\n${suffix}`;
+
+assert.ok(fullReminderMsg.startsWith('Erinnerung an folgende Krieger:'));
+assert.ok(fullReminderMsg.includes('@☆P.E.K.K.A☆'));
+assert.ok(fullReminderMsg.includes('@6lvck'));
+assert.ok(fullReminderMsg.includes('@gaseber'));
+assert.ok(fullReminderMsg.endsWith('Ihr habt noch Decks offen!'));
+assert.ok(!fullReminderMsg.includes('(4 Decks)'));
+assert.ok(!fullReminderMsg.includes('(1 Deck)'));
+assert.ok(!fullReminderMsg.includes('0/4'));
+assert.ok(!fullReminderMsg.includes('4/4'));
+
+console.log('  ✔ /testreport, /erinnerung, /seterinnerung & /seterinnerungsendtext erfolgreich validiert!\n');
 
 // Test 8: /setremainingtime, /setverwarnungen & /resetverwarnungen
 console.log('▶ Test 8: /setremainingtime, /setverwarnungen & /resetverwarnungen');

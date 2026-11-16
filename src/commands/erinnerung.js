@@ -27,34 +27,45 @@ export async function execute(interaction) {
     }
 
     const prefix = settings.reminder_message || config.defaultReminderMessage;
+    const suffix = settings.reminder_suffix || config.defaultReminderSuffix;
 
-    // Dynamisches Padding für bündige Spalten in Discords Proportionalschrift (Variante 2: ohne Codeblock)
-    const maxNameLen = Math.max(...warData.incomplete.map((p) => (p.name || '').length), 8);
     const playerLines = warData.incomplete.map((player) => {
       const name = player.name || 'Unbekannt';
-      const decksWord = player.missedDecks === 1 ? 'Deck' : 'Decks';
-      const diff = Math.max(0, maxNameLen - name.length);
-      const spaceCount = Math.max(2, Math.round(diff * 1.8) + 4);
-      const padding = ' '.repeat(spaceCount);
-      return `@${name}${padding}(${player.missedDecks} ${decksWord})`;
+      return `@${name}`;
     });
 
-    const fullMessage = `${prefix}\n\n${playerLines.join('\n')}`;
+    const lines = [];
+    if (prefix) lines.push(prefix);
+    lines.push(...playerLines);
+    if (suffix) lines.push(suffix);
+
+    const fullMessage = lines.join('\n');
 
     // Discord Limit: 2000 Zeichen pro Nachricht
     if (fullMessage.length <= 2000) {
       await interaction.editReply({ content: fullMessage });
     } else {
       const chunks = [];
-      let currentChunk = `${prefix}\n\n`;
+      let currentChunk = prefix ? `${prefix}\n` : '';
 
-      for (const line of playerLines) {
+      for (let i = 0; i < playerLines.length; i++) {
+        const line = playerLines[i];
         if ((currentChunk + line).length > 1950) {
           chunks.push(currentChunk.trim());
           currentChunk = '';
         }
         currentChunk += `${line}\n`;
       }
+
+      if (suffix) {
+        if ((currentChunk + suffix).length > 1950) {
+          chunks.push(currentChunk.trim());
+          currentChunk = suffix;
+        } else {
+          currentChunk += suffix;
+        }
+      }
+
       if (currentChunk.trim()) {
         chunks.push(currentChunk.trim());
       }

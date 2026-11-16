@@ -13,7 +13,7 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
 - **🚨 Automatische Kick-Vorschläge:** Spieler mit **5 oder mehr verpassten Decks** werden im Tagesbericht prominent als Kick-Kandidaten ausgewiesen.
 - **🛠️ Vollständige Admin & Co-Leader Slash-Commands:**
   - `/erlauberolle [Rolle]` – Erlaubt einer Rolle (z. B. `@Co-Leader`) die volle Bot-Nutzung ohne Discord-Admin-Rechte.
-  - `/erinnerung` – Erstellt die reine Text-Erinnerungsnachricht (`@Name (X Decks)`) zum direkten Kopieren und Weiterleiten.
+  - `/erinnerung` – Erstellt die reine Text-Erinnerungsnachricht (`@Name`) zum direkten Kopieren und Weiterleiten (ohne störende Deck-Zahlen).
   - `/angriffe` – Live-Kriegsstatus als formatiertes Embed abrufen.
   - `/verwarnungen` – Gesamtübersicht aller Spieler mit verpassten Decks, Kick-Kandidaten & Clan-Nachricht zum Kopieren.
   - `/setverwarnungen [Tag] [Anzahl]` – Verwarnstand (verpasste Decks) eines Spielers manuell festlegen.
@@ -25,7 +25,8 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
   - `/setreminder [Rolle]` – Legt die Rolle fest, die montags nach dem Clankrieg an die Zeitüberprüfung erinnert wird (Bestätigung per ✅, Wiederholung alle 24h).
   - `/setclan [Clan-Tag]` – Clan festlegen oder wechseln (z. B. `#2PP`).
   - `/setchannel` – Aktuellen Kanal als Ziel für Berichte festlegen.
-  - `/seterinnerung [Text]` – Eigenen Einleitungstext für die `/erinnerung` Nachricht hinterlegen.
+  - `/seterinnerung [text] [endtext]` – Einleitungs- und/oder Schlusstext für die `/erinnerung` Nachricht hinterlegen.
+  - `/seterinnerungsendtext [text]` – Schlusstext (z. B. "Ihr habt noch Decks offen!") für `/erinnerung` festlegen.
   - `/help` – Zeigt eine formatierte Übersicht aller Befehle.
 
 ---

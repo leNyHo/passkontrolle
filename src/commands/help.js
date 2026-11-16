@@ -14,7 +14,7 @@ export async function execute(interaction) {
       {
         name: '⚔️ Clankrieg & Status',
         value:
-          '• `/erinnerung` – Erstellt die fertige Text-Erinnerungsnachricht zum direkten Kopieren (`@Name (X Decks)`).\n' +
+          '• `/erinnerung` – Erstellt die fertige Text-Erinnerungsnachricht zum direkten Kopieren (`@Name`).\n' +
           '• `/angriffe` – Zeigt das formatierte Status-Embed mit Fortschritt und offenen Decks.\n' +
           '• `/verwarnungen` – Übersicht aller verpassten Decks, Kick-Kandidaten & Clan-Nachricht.\n' +
           '• `/setverwarnungen [tag] [anzahl]` – Setzt die Verwarnungen eines Spielers manuell auf einen Wert.\n' +
@@ -32,7 +32,8 @@ export async function execute(interaction) {
           '• `/setchannel` – Legt den aktuellen Kanal als Ziel für den täglichen Abschlussbericht fest.\n' +
           '• `/setremainingtime [zeit]` – Berechnet und setzt das Kriegsende anhand der Restzeit (z. B. `4h 30m` oder `4:30`).\n' +
           '• `/settime [HH:MM]` – Passt die Kriegsende-Uhrzeit manuell an (Europe/Berlin, Standard: `12:00`).\n' +
-          '• `/seterinnerung [text]` – Ändert den Einleitungstext für die `/erinnerung` Nachricht.\n' +
+          '• `/seterinnerung [text] [endtext]` – Ändert Einleitungs- und/oder Schlusstext für `/erinnerung`.\n' +
+          '• `/seterinnerungsendtext [text]` – Ändert den Schlusstext (z. B. "Ihr habt noch Decks offen!") für `/erinnerung`.\n' +
           '• `/help` – Öffnet diese Hilfeübersicht.',
         inline: false
       },

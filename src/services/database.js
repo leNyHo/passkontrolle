@@ -29,7 +29,8 @@ function initSchema(database) {
       channel_id TEXT,
       war_end_time TEXT DEFAULT '12:00',
       warning_message TEXT,
-      reminder_message TEXT DEFAULT 'Folgende Spieler haben noch Decks offen:',
+      reminder_message TEXT DEFAULT 'Erinnerung an folgende Spieler:',
+      reminder_suffix TEXT DEFAULT 'Ihr habt noch Decks offen!',
       allowed_role_id TEXT,
       reminder_role_id TEXT,
       timezone TEXT DEFAULT 'Europe/Berlin',
@@ -91,7 +92,13 @@ function initSchema(database) {
 
   // Migrationen für bestehende Datenbanken
   try {
-    database.exec("ALTER TABLE guild_settings ADD COLUMN reminder_message TEXT DEFAULT 'Folgende Spieler haben noch Decks offen:';");
+    database.exec("ALTER TABLE guild_settings ADD COLUMN reminder_message TEXT DEFAULT 'Erinnerung an folgende Spieler:';");
+  } catch {
+    // Spalte existiert bereits
+  }
+
+  try {
+    database.exec("ALTER TABLE guild_settings ADD COLUMN reminder_suffix TEXT DEFAULT 'Ihr habt noch Decks offen!';");
   } catch {
     // Spalte existiert bereits
   }
@@ -163,6 +170,7 @@ export function getGuildSettings(guildId) {
       war_end_time: config.defaultWarEndTime,
       warning_message: config.defaultWarningMessage,
       reminder_message: config.defaultReminderMessage,
+      reminder_suffix: config.defaultReminderSuffix,
       allowed_role_id: null,
       reminder_role_id: null,
       timezone: config.timezone,
@@ -175,6 +183,7 @@ export function getGuildSettings(guildId) {
     war_end_time: row.war_end_time || config.defaultWarEndTime,
     warning_message: row.warning_message || config.defaultWarningMessage,
     reminder_message: row.reminder_message || config.defaultReminderMessage,
+    reminder_suffix: row.reminder_suffix || config.defaultReminderSuffix,
     allowed_role_id: row.allowed_role_id || null,
     reminder_role_id: row.reminder_role_id || null,
     timezone: row.timezone || config.timezone
@@ -187,14 +196,15 @@ export function saveGuildSettings(guildId, updates = {}) {
 
   const database = getDatabase();
   const stmt = database.prepare(`
-    INSERT INTO guild_settings (guild_id, clan_tag, channel_id, war_end_time, warning_message, reminder_message, allowed_role_id, reminder_role_id, timezone, last_report_date, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO guild_settings (guild_id, clan_tag, channel_id, war_end_time, warning_message, reminder_message, reminder_suffix, allowed_role_id, reminder_role_id, timezone, last_report_date, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(guild_id) DO UPDATE SET
       clan_tag = excluded.clan_tag,
       channel_id = excluded.channel_id,
       war_end_time = excluded.war_end_time,
       warning_message = excluded.warning_message,
       reminder_message = excluded.reminder_message,
+      reminder_suffix = excluded.reminder_suffix,
       allowed_role_id = excluded.allowed_role_id,
       reminder_role_id = excluded.reminder_role_id,
       timezone = excluded.timezone,
@@ -209,6 +219,7 @@ export function saveGuildSettings(guildId, updates = {}) {
     updated.war_end_time,
     updated.warning_message,
     updated.reminder_message,
+    updated.reminder_suffix,
     updated.allowed_role_id,
     updated.reminder_role_id,
     updated.timezone,
