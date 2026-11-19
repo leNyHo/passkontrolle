@@ -144,10 +144,10 @@ export function createStatusEmbed({
       inline: false
     });
   } else {
-    // Zeigt den aktuellen Stand (z.B. 0/4 Decks, 2/4 Decks) ohne verbleibende Decks in Klammern
+    // Zeigt nur die @Namen der noch ausstehenden Spieler ohne Deck-Zahlen dahinter
     const lines = incompleteList.map((player) => {
       const name = player.name || 'Unbekannt';
-      return `• **${name}**: ${player.decksUsedToday}/4 Decks`;
+      return `@${name}`;
     });
 
     splitIntoFields(

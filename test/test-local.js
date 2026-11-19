@@ -227,8 +227,9 @@ const statusEmbed = createStatusEmbed({
   ]
 });
 assert.ok(statusEmbed.data.title.includes('Aktueller Clankriegs-Status'));
-assert.ok(JSON.stringify(statusEmbed.data).includes('**Max**: 0/4 Decks'));
-// Sicherstellen, dass die (4 Decks) Rest-Angabe bei /angriffe komplett raus ist
+assert.ok(JSON.stringify(statusEmbed.data).includes('@Max'));
+// Sicherstellen, dass keinerlei Deck-Angaben (0/4 Decks, (4 Decks), etc.) hinter den Spielernamen stehen
+assert.ok(!JSON.stringify(statusEmbed.data).includes('0/4 Decks'));
 assert.ok(!JSON.stringify(statusEmbed.data).includes('(4 Decks)'));
 // Sicherstellen, dass keine Codeblocks (''') mehr in StatusEmbeds enthalten sind
 assert.ok(!JSON.stringify(statusEmbed.data).includes('```'));
