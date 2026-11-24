@@ -37,7 +37,7 @@ const {
 } = await import('../src/services/database.js');
 
 const { normalizeClanTag, encodeClanTag } = await import('../src/services/clashRoyale.js');
-const { timeToCronExpression, checkPendingTimeReminders } = await import('../src/services/scheduler.js');
+const { timeToCronExpression, checkPendingTimeReminders, stopAllSchedulers } = await import('../src/services/scheduler.js');
 const { isMondayInTimezone } = await import('../src/services/reportService.js');
 const {
   createWarReportEmbed,
@@ -59,6 +59,11 @@ const {
   parseRemainingTime,
   calculateWarEndTimeFromRemaining
 } = await import('../src/commands/setremainingtime.js');
+const {
+  data: settimeData,
+  execute: settimeExecute,
+  parseSetTimeInput
+} = await import('../src/commands/settime.js');
 
 // Test 1: Clan Tag Normalisierung
 console.log('▶ Test 1: Clan-Tag Normalisierung & URL-Encoding');
@@ -86,6 +91,7 @@ assert.ok(angriffe.data.name === 'angriffe');
 assert.ok(testreport.data.name === 'testreport');
 assert.ok(resetverwarnungen.data.name === 'resetverwarnungen');
 assert.ok(setverwarnungen.data.name === 'setverwarnungen');
+assert.ok(settimeData.name === 'settime');
 assert.ok(setremainingtimeData.name === 'setremainingtime');
 console.log('  ✔ Cron-Konverter & Command-Export Tests erfolgreich!\n');
 
@@ -547,7 +553,57 @@ assert.equal(getPlayerStrikes('#P55').total_missed_decks, 0);
 
 console.log('  ✔ /setremainingtime, /setverwarnungen & /resetverwarnungen erfolgreich validiert!\n');
 
+// Test 9: /settime flexibler Parser & Ausführung
+console.log('▶ Test 9: /settime flexibler Zeit-Parser & Command-Ausführung');
+
+// 9a. parseSetTimeInput mit verschiedenen Eingaben
+assert.deepEqual(parseSetTimeInput('12:00'), { time: '12:00', isCalculated: false });
+assert.deepEqual(parseSetTimeInput('09:30'), { time: '09:30', isCalculated: false });
+assert.deepEqual(parseSetTimeInput('9:30'), { time: '09:30', isCalculated: false });
+assert.deepEqual(parseSetTimeInput('12.00'), { time: '12:00', isCalculated: false });
+assert.deepEqual(parseSetTimeInput('9.30'), { time: '09:30', isCalculated: false });
+assert.deepEqual(parseSetTimeInput('12'), { time: '12:00', isCalculated: false });
+assert.deepEqual(parseSetTimeInput('9'), { time: '09:00', isCalculated: false });
+assert.deepEqual(parseSetTimeInput('12 Uhr'), { time: '12:00', isCalculated: false });
+assert.deepEqual(parseSetTimeInput('12:00 Uhr'), { time: '12:00', isCalculated: false });
+assert.deepEqual(parseSetTimeInput('11.30 Uhr'), { time: '11:30', isCalculated: false });
+
+// Relative Zeit im /settime Fallback
+const relParsed = parseSetTimeInput('4h 30m');
+assert.ok(relParsed !== null);
+assert.equal(relParsed.isCalculated, true);
+assert.equal(relParsed.remainingMinutes, 270);
+
+// Ungültige Eingaben
+assert.equal(parseSetTimeInput('ungueltig'), null);
+assert.equal(parseSetTimeInput(''), null);
+assert.equal(parseSetTimeInput(null), null);
+
+// 9b. timeToCronExpression mit null / undefiniert
+assert.equal(timeToCronExpression(null), '0 12 * * *');
+assert.equal(timeToCronExpression(undefined), '0 12 * * *');
+assert.equal(timeToCronExpression(''), '0 12 * * *');
+
+// 9c. /settime execute
+let settimeReply = null;
+const mockSettimeInteraction = {
+  guildId: 'guild-test',
+  options: {
+    getString: (name) => (name === 'uhrzeit' ? '9:30' : null)
+  },
+  client: {},
+  reply: async (data) => {
+    settimeReply = data.content;
+  }
+};
+await settimeExecute(mockSettimeInteraction);
+assert.ok(settimeReply.includes('09:30 Uhr'));
+assert.equal(getGuildSettings('guild-test').war_end_time, '09:30');
+
+console.log('  ✔ /settime flexibler Zeit-Parser & Ausführung erfolgreich validiert!\n');
+
 // Aufräumen
+stopAllSchedulers();
 closeDatabase();
 if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
 

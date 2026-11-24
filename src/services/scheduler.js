@@ -17,6 +17,7 @@ const activeJobs = new Map();
  * Wandelt "HH:MM" in eine Cron-Expression um (z.B. "12:00" -> "0 12 * * *")
  */
 export function timeToCronExpression(timeStr) {
+  if (!timeStr || typeof timeStr !== 'string') return '0 12 * * *';
   const parts = timeStr.trim().split(':');
   if (parts.length !== 2) return '0 12 * * *';
 
@@ -63,6 +64,24 @@ export function scheduleGuildWarEnd(client, guildId, timeStr, timezone = config.
         }
       } catch (err) {
         console.error(`[Scheduler Report-Fehler auf Server ${guildId}]:`, err);
+
+        // Fehlermeldung direkt in den konfigurierten Admin-Kanal posten, damit Admins den Fehler sehen
+        try {
+          const settings = getGuildSettings(guildId);
+          if (settings.channel_id && client && client.channels) {
+            const channel = await client.channels.fetch(settings.channel_id).catch(() => null);
+            if (channel) {
+              await channel.send({
+                content:
+                  `⚠️ **Automatischer Clankriegsbericht konnte nicht gesendet werden!**\n` +
+                  `> **Fehler:** ${err.message}\n` +
+                  `*(Tipp: Bei einem 403-Fehler muss die aktuelle Server-IP im Supercell Developer Portal freigeschaltet werden)*`
+              });
+            }
+          }
+        } catch {
+          // Ignorieren falls Senden fehlschlägt
+        }
       }
     },
     { timezone: effectiveTimezone }
