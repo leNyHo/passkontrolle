@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { sanitizePublicText } from '../utils/sanitize.js';
 
 const BASE_URL = 'https://api.clashroyale.com/v1';
 
@@ -143,4 +144,126 @@ export async function getWarParticipation(clanTag) {
     clanScore: clanInfo.clanScore,
     badgeId: clanInfo.badgeId
   };
+}
+
+/**
+ * Klassifiziert Clash-Royale-API-Fehler ohne sensible Server-IPs oder Tokens preiszugeben.
+ */
+function formatSafeApiError(error) {
+  const msg = error?.message || '';
+  if (msg.includes('403')) {
+    return '403 Forbidden (API-Key ungültig oder aktuelle Server-IP nicht freigeschaltet)';
+  }
+  if (msg.includes('404')) {
+    return '404 Not Found (Clan-Tag nicht gefunden)';
+  }
+  if (msg.includes('503')) {
+    return '503 Maintenance (Supercell-Wartungsmodus)';
+  }
+  if (error?.name === 'TimeoutError' || error?.name === 'AbortError' || msg.toLowerCase().includes('timed out')) {
+    return 'Timeout (Supercell API antwortet nicht rechtzeitig)';
+  }
+  return sanitizePublicText(msg) || 'Unbekannter API-Fehler';
+}
+
+/**
+ * Prüft die Live-Verbindung zur Clash Royale API (ohne sensible Daten wie Server-IPs offenzulegen).
+ */
+export async function checkApiHealth(clanTag = null) {
+  const hasApiKey = Boolean(config.clashRoyaleApiKey);
+  if (!hasApiKey) {
+    return {
+      hasApiKey: false,
+      connected: false,
+      clanFound: false,
+      latencyMs: null,
+      statusText: 'Kein API-Key konfiguriert',
+      clanName: null,
+      periodType: null,
+      totalMembers: null,
+      completedCount: null,
+      incompleteCount: null
+    };
+  }
+
+  const start = Date.now();
+  try {
+    if (clanTag) {
+      const warData = await getWarParticipation(clanTag);
+      return {
+        hasApiKey: true,
+        connected: true,
+        clanFound: true,
+        latencyMs: Date.now() - start,
+        statusText: 'OK (Verbunden)',
+        clanName: warData.clanName,
+        periodType: warData.periodType,
+        totalMembers: warData.totalMembers,
+        completedCount: warData.completedCount,
+        incompleteCount: warData.incompleteCount
+      };
+    }
+
+    await apiFetch('/locations?limit=1');
+    return {
+      hasApiKey: true,
+      connected: true,
+      clanFound: false,
+      latencyMs: Date.now() - start,
+      statusText: 'OK (Verbunden, kein Clan-Tag gesetzt)',
+      clanName: null,
+      periodType: null,
+      totalMembers: null,
+      completedCount: null,
+      incompleteCount: null
+    };
+  } catch (error) {
+    const latencyMs = Date.now() - start;
+    const msg = error?.message || '';
+
+    // Bei 404 prüfen, ob die API-Authentifizierung selbst grundsätzlich funktioniert
+    if (clanTag && msg.includes('404')) {
+      try {
+        await apiFetch('/locations?limit=1');
+        return {
+          hasApiKey: true,
+          connected: true,
+          clanFound: false,
+          latencyMs: Date.now() - start,
+          statusText: 'API verbunden, aber Clan-Tag nicht gefunden (404)',
+          clanName: null,
+          periodType: null,
+          totalMembers: null,
+          completedCount: null,
+          incompleteCount: null
+        };
+      } catch (fallbackErr) {
+        return {
+          hasApiKey: true,
+          connected: false,
+          clanFound: false,
+          latencyMs: Date.now() - start,
+          statusText: formatSafeApiError(fallbackErr),
+          clanName: null,
+          periodType: null,
+          totalMembers: null,
+          completedCount: null,
+          incompleteCount: null
+        };
+      }
+    }
+
+    return {
+      hasApiKey: true,
+      connected: false,
+      clanFound: false,
+      latencyMs,
+      statusText: formatSafeApiError(error),
+      clanName: null,
+      periodType: null,
+      totalMembers: null,
+      completedCount: null,
+      incompleteCount: null
+    };
+  }
 }

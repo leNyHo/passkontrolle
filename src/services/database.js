@@ -641,6 +641,89 @@ export function updateTimeCheckReminderMessage(id, newMessageId, nextRemindAt, r
   return (info?.changes || 0) > 0;
 }
 
+/**
+ * Liefert datenschutzsichere Diagnosewerte zur Datenbank und zum freien Speicherplatz
+ */
+export function getDatabaseDiagnostics(guildId, clanTag = null) {
+  let dbConnected = false;
+  let dbWritable = false;
+  let strikeCount = 0;
+  let kickCandidateCount = 0;
+  let openRemindersCount = 0;
+  let diskSpaceOk = null;
+  let diskUsedPercent = null;
+
+  try {
+    const database = getDatabase();
+    const pingRow = database.prepare('SELECT 1 AS ok').get();
+    dbConnected = pingRow?.ok === 1;
+
+    try {
+      database.exec('BEGIN IMMEDIATE;');
+      database.exec('ROLLBACK;');
+      dbWritable = true;
+    } catch {
+      try { database.exec('ROLLBACK;'); } catch {}
+      dbWritable = false;
+    }
+
+    if (clanTag) {
+      const cleanTag = clanTag.trim().toUpperCase();
+      const normalized = cleanTag.startsWith('#') ? cleanTag : `#${cleanTag}`;
+      const strikeStats = database.prepare(`
+        SELECT
+          COUNT(*) AS totalPlayers,
+          SUM(CASE WHEN total_missed_decks >= 5 THEN 1 ELSE 0 END) AS kickCandidates
+        FROM player_strikes
+        WHERE clan_tag = ? AND total_missed_decks >= 1
+      `).get(normalized);
+
+      strikeCount = Number(strikeStats?.totalPlayers || 0);
+      kickCandidateCount = Number(strikeStats?.kickCandidates || 0);
+    }
+
+    if (guildId) {
+      const remStats = database.prepare(`
+        SELECT COUNT(*) AS openCount
+        FROM time_check_reminders
+        WHERE guild_id = ? AND acknowledged = 0
+      `).get(guildId);
+      openRemindersCount = Number(remStats?.openCount || 0);
+    }
+  } catch (err) {
+    console.error('[DB-Diagnostics] Fehler:', err.message);
+    dbConnected = false;
+  }
+
+  try {
+    const dbDir = path.dirname(config.databasePath);
+    if (typeof fs.statfsSync === 'function' && fs.existsSync(dbDir)) {
+      const stats = fs.statfsSync(dbDir);
+      const bsize = Number(stats.bsize || 0);
+      const blocks = Number(stats.blocks || 0);
+      const bavail = Number(stats.bavail || 0);
+      if (bsize > 0 && blocks > 0) {
+        const freeBytes = bavail * bsize;
+        const totalBytes = blocks * bsize;
+        diskUsedPercent = Math.min(100, Math.max(0, Math.round(((totalBytes - freeBytes) / totalBytes) * 100)));
+        diskSpaceOk = freeBytes >= 50 * 1024 * 1024 && diskUsedPercent < 98;
+      }
+    }
+  } catch {
+    diskSpaceOk = null;
+  }
+
+  return {
+    dbConnected,
+    dbWritable,
+    strikeCount,
+    kickCandidateCount,
+    openRemindersCount,
+    diskSpaceOk,
+    diskUsedPercent
+  };
+}
+
 export function closeDatabase() {
   if (db) {
     try {

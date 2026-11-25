@@ -33,18 +33,22 @@ const {
   getTimeCheckReminderByGuildAndDate,
   acknowledgeTimeCheckReminder,
   updateTimeCheckReminderMessage,
+  getDatabaseDiagnostics,
   closeDatabase
 } = await import('../src/services/database.js');
 
-const { normalizeClanTag, encodeClanTag } = await import('../src/services/clashRoyale.js');
-const { timeToCronExpression, checkPendingTimeReminders, stopAllSchedulers } = await import('../src/services/scheduler.js');
+const { normalizeClanTag, encodeClanTag, checkApiHealth } = await import('../src/services/clashRoyale.js');
+const { timeToCronExpression, checkPendingTimeReminders, getSchedulerStatus, stopAllSchedulers } = await import('../src/services/scheduler.js');
 const { isMondayInTimezone } = await import('../src/services/reportService.js');
 const {
   createWarReportEmbed,
   createStatusEmbed,
   createStrikesEmbed,
-  createTimeCheckReminderEmbed
+  createTimeCheckReminderEmbed,
+  createAdminConfigEmbed
 } = await import('../src/utils/embeds.js');
+const { sanitizePublicText } = await import('../src/utils/sanitize.js');
+const adminconfig = await import('../src/commands/adminconfig.js');
 const erlauberolle = await import('../src/commands/erlauberolle.js');
 const setreminder = await import('../src/commands/setreminder.js');
 const erinnerung = await import('../src/commands/erinnerung.js');
@@ -601,6 +605,112 @@ assert.ok(settimeReply.includes('09:30 Uhr'));
 assert.equal(getGuildSettings('guild-test').war_end_time, '09:30');
 
 console.log('  ✔ /settime flexibler Zeit-Parser & Ausführung erfolgreich validiert!\n');
+
+// Test 10: /adminconfig Diagnose, Scheduler-Status & Anti-Doxxing
+console.log('▶ Test 10: /adminconfig Diagnose, Scheduler-Status & Anti-Doxxing');
+
+assert.equal(adminconfig.data.name, 'adminconfig');
+assert.ok(adminconfig.data.options.some((o) => o.name === 'oeffentlich'));
+
+// 10a. Anti-Doxxing Sanitizer testen
+const leakyText =
+  'Error from IP 34.133.77.68 and IPv6 2a02:560:5f45:9b00:c127:a2de:b916:dccf, ' +
+  'Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig, user l3nnox@example.com at /app/data/clashbot.db um 12:00:00';
+const sanitized = sanitizePublicText(leakyText);
+assert.ok(!sanitized.includes('34.133.77.68'));
+assert.ok(!sanitized.includes('2a02:560:5f45:9b00'));
+assert.ok(!sanitized.includes('eyJhbGciOiJIUzI1NiJ9'));
+assert.ok(!sanitized.includes('l3nnox@example.com'));
+assert.ok(!sanitized.includes('/app/data/clashbot.db'));
+assert.ok(sanitized.includes('12:00:00')); // Uhrzeiten müssen erhalten bleiben!
+
+// 10b. Scheduler-Status & DB-Diagnose
+const schedStatus = getSchedulerStatus('guild-test');
+assert.equal(schedStatus.isJobRegistered, true);
+assert.equal(schedStatus.timeStr, '09:30');
+assert.equal(schedStatus.cronExpr, '30 9 * * *');
+
+const dbDiag = getDatabaseDiagnostics('guild-test', '#2PP');
+assert.equal(dbDiag.dbConnected, true);
+assert.equal(dbDiag.dbWritable, true);
+assert.equal(typeof dbDiag.strikeCount, 'number');
+
+// 10c. createAdminConfigEmbed Anti-Doxxing & Pflichtfelder
+const diagEmbed = createAdminConfigEmbed({
+  isBotReady: true,
+  discordPingMs: 38,
+  uptimeText: '1h 15m',
+  hasDiscordToken: true,
+  apiHealth: {
+    hasApiKey: true,
+    connected: false,
+    clanFound: false,
+    latencyMs: 120,
+    statusText: '403 Forbidden (Invalid authorization: API key does not allow access from IP 34.133.77.68)'
+  },
+  clanTag: '#2PP',
+  channelId: '987654321098765432',
+  channelPermissions: { exists: true, canView: true, canSend: true, canEmbed: true, missing: [] },
+  warEndTime: '09:30',
+  timezone: 'Europe/Berlin',
+  schedulerStatus: schedStatus,
+  nextRunLabel: 'Heute, 09:30 Uhr',
+  lastReportDate: null,
+  executedToday: false,
+  dbDiagnostics: dbDiag,
+  reminderPrefix: 'Erinnerung:',
+  reminderSuffix: 'Decks spielen!'
+});
+const diagJson = JSON.stringify(diagEmbed.data);
+assert.ok(diagJson.includes('isBotReady'));
+assert.ok(diagJson.includes('mitClashRoyaleApiVerbunden'));
+assert.ok(diagJson.includes('<#987654321098765432>'));
+assert.ok(diagJson.includes('09:30 Uhr'));
+assert.ok(!diagJson.includes('34.133.77.68')); // IP darf NIEMALS im Embed auftauchen!
+
+// 10d. /adminconfig Command execute (Standard = Ephemeral)
+let adminConfigDeferOpts = null;
+let adminConfigReply = null;
+saveGuildSettings('guild-adminconfig-test', {
+  clan_tag: '#2PP',
+  channel_id: '555666777888',
+  war_end_time: '12:00'
+});
+
+const mockAdminConfigInteraction = {
+  guildId: 'guild-adminconfig-test',
+  options: {
+    getBoolean: () => null
+  },
+  client: {
+    isReady: () => true,
+    ws: { ping: 42 },
+    channels: {
+      fetch: async () => ({ id: '555666777888' })
+    }
+  },
+  deferReply: async (opts) => {
+    adminConfigDeferOpts = opts;
+  },
+  editReply: async (payload) => {
+    adminConfigReply = payload;
+  }
+};
+await adminconfig.execute(mockAdminConfigInteraction);
+assert.equal(adminConfigDeferOpts?.flags, 64); // MessageFlags.Ephemeral === 64
+assert.ok(adminConfigReply?.embeds?.length === 1);
+const execJson = JSON.stringify(adminConfigReply.embeds[0].data);
+assert.ok(execJson.includes('isBotReady'));
+assert.ok(execJson.includes('<#555666777888>'));
+assert.ok(execJson.includes('12:00 Uhr'));
+
+// Test mit oeffentlich: true
+adminConfigDeferOpts = null;
+mockAdminConfigInteraction.options.getBoolean = (name) => (name === 'oeffentlich' ? true : null);
+await adminconfig.execute(mockAdminConfigInteraction);
+assert.equal(adminConfigDeferOpts?.flags, undefined);
+
+console.log('  ✔ /adminconfig Diagnose, Scheduler-Status & Anti-Doxxing erfolgreich validiert!\n');
 
 // Aufräumen
 stopAllSchedulers();

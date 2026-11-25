@@ -1,4 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
+import { sanitizePublicText } from './sanitize.js';
 
 export const COLORS = {
   SUCCESS_GREEN: 0x2ECC71,
@@ -268,6 +269,183 @@ export function createTimeCheckReminderEmbed({
         : `*Erfolgt innerhalb von 24 Stunden keine Reaktion mit ✅, wird diese Erinnerung automatisch wiederholt.*`)
     )
     .setFooter({ text: 'Clash Royale Bot • Clankriegs-Zeitüberprüfung' })
+    .setTimestamp();
+
+  return embed;
+}
+
+function truncateText(text, maxLen = 180) {
+  if (!text) return '*(leer)*';
+  const clean = String(text).replace(/\r?\n/g, ' ').trim();
+  return clean.length > maxLen ? `${clean.slice(0, maxLen - 3)}...` : clean;
+}
+
+/**
+ * Erstellt das Datenschutz-sichere Diagnose- & Konfigurations-Embed für /adminconfig.
+ * Gibt keinerlei sensible Serverdaten (IPs, Tokens, Pfade, Hostnames, E-Mails, fremde Server) aus.
+ */
+export function createAdminConfigEmbed({
+  isBotReady = false,
+  discordPingMs = null,
+  uptimeText = 'k.A.',
+  hasDiscordToken = false,
+  apiHealth = {},
+  clanTag = null,
+  channelId = null,
+  channelPermissions = { exists: false, canView: false, canSend: false, canEmbed: false, missing: [] },
+  allowedRoleId = null,
+  reminderRoleId = null,
+  warEndTime = '12:00',
+  timezone = 'Europe/Berlin',
+  schedulerStatus = {},
+  nextRunLabel = 'k.A.',
+  lastReportDate = null,
+  executedToday = false,
+  dbDiagnostics = {},
+  reminderPrefix = '',
+  reminderSuffix = ''
+}) {
+  const isApiConnected = Boolean(apiHealth.connected);
+  const isSchedulerActive = Boolean(schedulerStatus.isJobRegistered);
+  const isChannelReady = Boolean(
+    channelId &&
+      channelPermissions.exists &&
+      channelPermissions.canView &&
+      channelPermissions.canSend &&
+      channelPermissions.canEmbed
+  );
+  const isDbOk = Boolean(dbDiagnostics.dbConnected && dbDiagnostics.dbWritable);
+  const isDiskOk = dbDiagnostics.diskSpaceOk !== false;
+
+  const blockers = [];
+  if (!isBotReady) blockers.push('`isBotReady` ist `False`');
+  if (!apiHealth.hasApiKey) blockers.push('Kein Clash Royale API-Key hinterlegt');
+  else if (!isApiConnected) blockers.push('Clash Royale API nicht erreichbar / 403');
+  if (!clanTag) blockers.push('Kein Clan-Tag konfiguriert (`/setclan`)');
+  else if (isApiConnected && apiHealth.clanFound === false) blockers.push('Clan-Tag bei API nicht gefunden (404)');
+  if (!channelId) blockers.push('Kein Report-Kanal gesetzt (`/setchannel`)');
+  else if (!channelPermissions.exists) blockers.push('Verknüpfter Report-Kanal existiert nicht mehr');
+  else if (!isChannelReady) blockers.push(`Fehlende Rechte im Kanal (${(channelPermissions.missing || []).join(', ')})`);
+  if (!isSchedulerActive) blockers.push('Scheduler-Cronjob nicht aktiv');
+  if (!isDbOk) blockers.push('Datenbank nicht les- oder schreibbar');
+  if (!isDiskOk) blockers.push('Speicherplatz auf Server kritisch (< 50 MB frei)');
+
+  const isAutoReportReady = blockers.length === 0;
+
+  let color = COLORS.SUCCESS_GREEN;
+  if (!isApiConnected || !isDbOk || !isDiskOk || !isBotReady) {
+    color = COLORS.DANGER_RED;
+  } else if (!isAutoReportReady) {
+    color = COLORS.WARNING_ORANGE;
+  }
+
+  let statusSummary = `**Automatische Reports betriebsbereit:** \`${isAutoReportReady ? 'True' : 'False'}\``;
+  if (blockers.length > 0) {
+    statusSummary += `\n⚠️ **Erkannte Probleme:**\n${blockers.map((b) => `• ${b}`).join('\n')}`;
+  } else if (apiHealth.periodType && apiHealth.periodType !== 'warDay' && apiHealth.periodType !== 'colosseum') {
+    statusSummary += `\nℹ️ *Hinweis: Aktuell läuft ein Trainingstag (\`${apiHealth.periodType}\`) – automatische Berichte pausieren Mo–Mi und laufen ab Do wieder.*`;
+  }
+
+  let permText = '—';
+  if (channelId) {
+    if (!channelPermissions.exists) {
+      permText = '❌ Kanal nicht gefunden oder Bot hat keinen Zugriff';
+    } else if (isChannelReady) {
+      permText = '✅ OK (Ansehen, Senden, Embeds)';
+    } else {
+      permText = `❌ Fehlend: ${(channelPermissions.missing || []).join(', ') || 'Unbekannt'}`;
+    }
+  }
+
+  let diskSpaceLabel = '`Unbekannt`';
+  if (dbDiagnostics.diskSpaceOk === true) {
+    diskSpaceLabel =
+      dbDiagnostics.diskUsedPercent != null
+        ? `\`True\` (Belegt: ${dbDiagnostics.diskUsedPercent}%)`
+        : '`True`';
+  } else if (dbDiagnostics.diskSpaceOk === false) {
+    diskSpaceLabel =
+      dbDiagnostics.diskUsedPercent != null
+        ? `\`False\` ⚠️ Kritisch voll (${dbDiagnostics.diskUsedPercent}% belegt!)`
+        : '`False` ⚠️ Kritisch voll!';
+  }
+
+  const isWarDay = apiHealth.periodType === 'warDay' || apiHealth.periodType === 'colosseum';
+  const apiLines = [
+    `**mitClashRoyaleApiVerbunden:** \`${isApiConnected ? 'True' : 'False'}\``,
+    `**API-Key hinterlegt:** \`${apiHealth.hasApiKey ? 'True' : 'False'}\``,
+    `**API-Status:** ${sanitizePublicText(apiHealth.statusText || 'Unbekannt')}`,
+    `**API-Latenz:** ${apiHealth.latencyMs != null ? `\`${apiHealth.latencyMs} ms\`` : '`k.A.`'}`,
+    `**Clan-Tag:** ${clanTag ? `\`${clanTag}\`${apiHealth.clanName ? ` (${sanitizePublicText(apiHealth.clanName)})` : ''}` : '❌ Nicht gesetzt (`/setclan`)'}`
+  ];
+
+  if (apiHealth.periodType) {
+    apiLines.push(
+      `**Aktuelle Kriegsphase:** \`${apiHealth.periodType}\` (${isWarDay ? '✅ Kriegstag' : 'ℹ️ Trainingstag'})`
+    );
+  }
+  if (apiHealth.totalMembers != null) {
+    apiLines.push(`**Live-Fortschritt:** ${apiHealth.completedCount}/${apiHealth.totalMembers} Spieler fertig`);
+  }
+
+  const embed = new EmbedBuilder()
+    .setColor(color)
+    .setTitle('🛠️ Admin-Diagnose & Konfiguration')
+    .setDescription(statusSummary)
+    .addFields(
+      {
+        name: '🤖 Bot & Discord',
+        value:
+          `**isBotReady:** \`${isBotReady ? 'True' : 'False'}\`\n` +
+          `**Discord Ping:** ${discordPingMs != null ? `\`${discordPingMs} ms\`` : '`k.A.`'}\n` +
+          `**Uptime:** \`${uptimeText}\`\n` +
+          `**Discord-Token konfiguriert:** \`${hasDiscordToken ? 'True' : 'False'}\``,
+        inline: true
+      },
+      {
+        name: '📢 Verknüpfte Kanäle & Rollen',
+        value:
+          `**Report-Kanal:** ${channelId ? `<#${channelId}>` : '❌ Nicht gesetzt (`/setchannel`)'}\n` +
+          `**Kanal-Rechte:** ${permText}\n` +
+          `**Erlaubte Rolle:** ${allowedRoleId ? `<@&${allowedRoleId}>` : 'Nur Owner / Admins'}\n` +
+          `**Montags-Reminder:** ${reminderRoleId ? `<@&${reminderRoleId}>` : 'Deaktiviert'}`,
+        inline: true
+      },
+      {
+        name: '⚔️ Clash Royale API',
+        value: apiLines.join('\n'),
+        inline: false
+      },
+      {
+        name: '⏰ Report-Zeitplan & Scheduler',
+        value:
+          `**Report-Uhrzeit:** **${warEndTime} Uhr** (${timezone})\n` +
+          `**isSchedulerActive:** \`${isSchedulerActive ? 'True' : 'False'}\`${schedulerStatus.cronExpr ? ` (\`${schedulerStatus.cronExpr}\`)` : ''}\n` +
+          `**Nächster geplanter Lauf:** ${nextRunLabel}\n` +
+          `**Letzter Auto-Report:** ${lastReportDate ? `\`${lastReportDate}\`` : 'Noch keiner'}\n` +
+          `**Heute bereits ausgeführt:** \`${executedToday ? 'True' : 'False'}\`\n` +
+          `**24h-Reminder-Check aktiv:** \`${schedulerStatus.isGlobalReminderCheckActive ? 'True' : 'False'}\``,
+        inline: true
+      },
+      {
+        name: '💾 Datenbank & Speicher',
+        value:
+          `**Datenbank verbunden:** \`${dbDiagnostics.dbConnected ? 'True' : 'False'}\`\n` +
+          `**Datenbank schreibbar:** \`${dbDiagnostics.dbWritable ? 'True' : 'False'}\`\n` +
+          `**Speicherplatz OK:** ${diskSpaceLabel}\n` +
+          `**Verwarnungen (Clan):** ${dbDiagnostics.strikeCount ?? 0} Spieler (${dbDiagnostics.kickCandidateCount ?? 0} Kick-Kandidaten)\n` +
+          `**Offene Zeit-Erinnerungen:** ${dbDiagnostics.openRemindersCount ?? 0}`,
+        inline: true
+      },
+      {
+        name: '📝 Erinnerungstexte (/seterinnerung)',
+        value:
+          `**Einleitungstext:** ${truncateText(sanitizePublicText(reminderPrefix), 160)}\n` +
+          `**Schlusstext:** ${truncateText(sanitizePublicText(reminderSuffix), 160)}`,
+        inline: false
+      }
+    )
+    .setFooter({ text: 'Clash Royale Admin Bot • Datenschutz-gefilterte Diagnose (ohne IPs, Keys & Pfade)' })
     .setTimestamp();
 
   return embed;

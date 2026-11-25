@@ -35,6 +35,7 @@ import * as testreportCommand from './commands/testreport.js';
 import * as resetverwarnungenCommand from './commands/resetverwarnungen.js';
 import * as setverwarnungenCommand from './commands/setverwarnungen.js';
 import * as resetallstrikesCommand from './commands/resetallstrikes.js';
+import * as adminconfigCommand from './commands/adminconfig.js';
 import * as helpCommand from './commands/help.js';
 
 console.log('--- Starte Clash Royale Clan-Management Bot ---');
@@ -70,6 +71,7 @@ const commandList = [
   resetverwarnungenCommand,
   setverwarnungenCommand,
   resetallstrikesCommand,
+  adminconfigCommand,
   helpCommand
 ];
 

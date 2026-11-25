@@ -8,10 +8,12 @@ import {
 } from './database.js';
 import { executeWarReport } from './reportService.js';
 import { createTimeCheckReminderEmbed } from '../utils/embeds.js';
+import { sanitizePublicText } from '../utils/sanitize.js';
 import { config } from '../config.js';
 
 // Map: guildId -> cron.ScheduledTask
 const activeJobs = new Map();
+const jobMetadata = new Map();
 
 /**
  * Wandelt "HH:MM" in eine Cron-Expression um (z.B. "12:00" -> "0 12 * * *")
@@ -39,6 +41,7 @@ export function scheduleGuildWarEnd(client, guildId, timeStr, timezone = config.
   if (activeJobs.has(guildId)) {
     activeJobs.get(guildId).stop();
     activeJobs.delete(guildId);
+    jobMetadata.delete(guildId);
   }
 
   const effectiveTimezone = timezone || 'Europe/Berlin';
@@ -74,7 +77,7 @@ export function scheduleGuildWarEnd(client, guildId, timeStr, timezone = config.
               await channel.send({
                 content:
                   `⚠️ **Automatischer Clankriegsbericht konnte nicht gesendet werden!**\n` +
-                  `> **Fehler:** ${err.message}\n` +
+                  `> **Fehler:** ${sanitizePublicText(err.message)}\n` +
                   `*(Tipp: Bei einem 403-Fehler muss die aktuelle Server-IP im Supercell Developer Portal freigeschaltet werden)*`
               });
             }
@@ -88,6 +91,11 @@ export function scheduleGuildWarEnd(client, guildId, timeStr, timezone = config.
   );
 
   activeJobs.set(guildId, reportJob);
+  jobMetadata.set(guildId, {
+    timeStr,
+    timezone: effectiveTimezone,
+    cronExpr: reportCronExpr
+  });
   console.log(`[Scheduler] Server ${guildId}: Abschlussbericht um ${timeStr} ("${reportCronExpr}") [${effectiveTimezone}]`);
 }
 
@@ -208,6 +216,21 @@ export function initScheduler(client) {
 }
 
 /**
+ * Gibt den aktuellen Scheduler-Status für einen Server zurück
+ */
+export function getSchedulerStatus(guildId) {
+  const isJobRegistered = activeJobs.has(guildId);
+  const meta = jobMetadata.get(guildId) || null;
+  return {
+    isJobRegistered,
+    isGlobalReminderCheckActive: activeJobs.has('__system_reminder_check__'),
+    timeStr: meta?.timeStr || null,
+    timezone: meta?.timezone || null,
+    cronExpr: meta?.cronExpr || null
+  };
+}
+
+/**
  * Stoppt alle aktiven Cron-Jobs (für graceful shutdown)
  */
 export function stopAllSchedulers() {
@@ -215,5 +238,6 @@ export function stopAllSchedulers() {
     job.stop();
   }
   activeJobs.clear();
+  jobMetadata.clear();
   console.log('[Scheduler] Alle Zeitpläne gestoppt.');
 }

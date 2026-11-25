@@ -27,6 +27,7 @@ Ein professioneller, leichtgewichtiger und vollautomatischer Discord Bot für Cl
   - `/setchannel` – Aktuellen Kanal als Ziel für Berichte festlegen.
   - `/seterinnerung [text] [endtext]` – Einleitungs- und/oder Schlusstext für die `/erinnerung` Nachricht hinterlegen.
   - `/seterinnerungsendtext [text]` – Schlusstext (z. B. "Ihr habt noch Decks offen!") für `/erinnerung` festlegen.
+  - `/adminconfig` – Zeigt eine datenschutzsichere Diagnose & Konfiguration (API-Status, `isBotReady`, Report-Kanal, Zeitplan, Speicherstatus).
   - `/help` – Zeigt eine formatierte Übersicht aller Befehle.
 
 ---

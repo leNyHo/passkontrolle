@@ -34,6 +34,7 @@ export async function execute(interaction) {
           '• `/settime [HH:MM]` – Passt die Kriegsende-Uhrzeit manuell an (Europe/Berlin, Standard: `12:00`).\n' +
           '• `/seterinnerung [text] [endtext]` – Ändert Einleitungs- und/oder Schlusstext für `/erinnerung`.\n' +
           '• `/seterinnerungsendtext [text]` – Ändert den Schlusstext (z. B. "Ihr habt noch Decks offen!") für `/erinnerung`.\n' +
+          '• `/adminconfig` – Zeigt datenschutzsicher API-Status, `isBotReady`, Report-Kanal & Zeitplan an.\n' +
           '• `/help` – Öffnet diese Hilfeübersicht.',
         inline: false
       },
